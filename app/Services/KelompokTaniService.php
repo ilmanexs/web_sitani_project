@@ -7,6 +7,7 @@ use App\Repositories\Interfaces\KelompokTaniRepositoryInterface;
 use App\Repositories\Interfaces\ManyRelationshipManagement;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -167,7 +168,12 @@ class KelompokTaniService
             $kelompokTani = $this->crudRepository->create($data);
 
             if ($kelompokTani !== null) {
-                $this->relationManager->attach($kelompokTani, $data['penyuluh_terdaftar_id']);
+                $penyuluhIds = $data['penyuluh_terdaftar_id'] ?? [];
+
+                if (!empty($penyuluhIds)) {
+                    $penyuluhIdsToAttach = Arr::flatten($penyuluhIds);
+                    $this->relationManager->attach($kelompokTani, $penyuluhIdsToAttach);
+                }
 
                 return [
                     'success' => true,
@@ -214,6 +220,10 @@ class KelompokTaniService
 
             if (!empty($kelompokTani)) {
                 $this->relationManager->sync($kelompokTani, $data['penyuluh_terdaftar_id']);
+                $penyuluhIds = $data['penyuluh_terdaftar_id'] ?? [];
+
+                $penyuluhIdsToSync = Arr::flatten($penyuluhIds);
+                $this->relationManager->sync($kelompokTani, $penyuluhIdsToSync);
                 return [
                     'success' => true,
                     'message' => 'Data kelompok tani berhasil diperbarui',
