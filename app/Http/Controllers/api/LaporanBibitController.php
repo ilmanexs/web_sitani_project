@@ -40,10 +40,10 @@ class LaporanBibitController extends Controller
             return $this->successResponse(new LaporanBibitSuccessResource($laporan), 'Laporan berhasil disimpan', Response::HTTP_CREATED);
         } catch (DataAccessException $e) {
             Log::error($e->getMessage());
-            return $this->errorResponse('Laporan Gagal disimpan',Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Laporan Gagal disimpan',Response::HTTP_INTERNAL_SERVER_ERROR, ['trace' => $e->getTraceAsString()]);
         } catch (Throwable $e) {
             Log::error($e->getMessage());
-            return $this->errorResponse('Terjadi kesalahan di server.',Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Terjadi kesalahan di server.',Response::HTTP_INTERNAL_SERVER_ERROR, ['trace' => $e->getTraceAsString()]);
         }
     }
 
