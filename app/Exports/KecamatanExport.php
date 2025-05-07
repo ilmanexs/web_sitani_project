@@ -12,7 +12,7 @@ class KecamatanExport implements FromCollection, WithHeadings
     /**
     * @return Collection
     */
-    public function collection()
+    public function collection(): Collection
     {
         return Kecamatan::select('nama')->get();
     }

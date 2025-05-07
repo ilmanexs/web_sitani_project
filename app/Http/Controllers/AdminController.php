@@ -2,23 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\AdminExport;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ImportFailedException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Exports\template\AdminTemplate;
 use App\Http\Requests\AdminRequest;
 use App\Http\Requests\FileExcelRequest;
 use App\Http\Requests\ProfileRequest;
-use App\Imports\AdminImport;
-use App\Services\AdminService;
+use App\Services\Interfaces\AdminServiceInterface;
+use App\Services\Interfaces\RoleServiceInterface;
 use App\Services\RoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class AdminController extends Controller
 {
-    protected AdminService $service;
+    protected AdminServiceInterface $service;
 
-    public function __construct(AdminService $service)
+    public function __construct(AdminServiceInterface $service)
     {
         $this->service = $service;
     }
@@ -28,10 +31,11 @@ class AdminController extends Controller
      */
     public function index(): View
     {
-        $data = $this->service->getAll();
-        $admins = [];
-        if ($data['success']) {
-            $admins = $data['data'];
+        try {
+            $admins = $this->service->getAll();
+        } catch (DataAccessException $e) {
+            $admins = collect();
+            session()->flash('error', 'Gagal memuat data admin.');
         }
 
         return view('pages.admin.index', compact('admins'));
@@ -40,14 +44,17 @@ class AdminController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(RoleService $roleService): View
+    public function create(RoleServiceInterface $roleService): View
     {
-        $data = $roleService->getAll();
-        $roles = [];
-        if ($data['success']) {
-            $roles = $data['data'];
+        try {
+            $roles = $roleService->getAll();
+        } catch (DataAccessException $e) {
+            $roles = collect();
+            session()->flash('error', 'Gagal memuat data roles.');
+        } catch (Throwable $e) {
+            $roles = collect();
+            session()->flash('error', 'Terjadi kesalahan tak terduga saat memuat roles.');
         }
-
         return view('pages.admin.create', compact('roles'));
     }
 
@@ -56,27 +63,32 @@ class AdminController extends Controller
      */
     public function store(AdminRequest $request): RedirectResponse
     {
-        $result = $this->service->create($request->validated());
-
-        if ($result['success']) {
+        try {
+            $this->service->create($request->validated());
             return redirect()->route('admin.index')->with('success', 'Data berhasil disimpan');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data admin. Silakan coba lagi.');
+        } catch (Throwable $e) {
+            return redirect()->back()->withInput()->with('error', 'Terjadi kesalahan tak terduga saat menyimpan data.');
         }
-        return redirect()->route('admin.index')->with('error', 'Data gagal disimpan');
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id, RoleService $roleService): View
+    public function edit($id, RoleServiceInterface $roleService): View
     {
-        $dataAdmin = $this->service->getById($id);
-        $dataRole = $roleService->getAll();
-        $admin = [];
-        $roles = [];
+        try {
+            $admin = $this->service->getById($id);
 
-        if ($dataAdmin['success'] && $dataRole['data']) {
-            $admin = $dataAdmin['data'];
-            $roles = $dataRole['data'];
+            $roles = $roleService->getAll();
+
+        } catch (ResourceNotFoundException $e) {
+            abort(404, $e->getMessage());
+        } catch (DataAccessException $e) {
+            abort(500, 'Terjadi kesalahan saat memuat data admin atau roles untuk edit. Silakan coba lagi.');
+        } catch (Throwable $e) {
+            abort(500, 'Terjadi kesalahan tak terduga.');
         }
 
         return view('pages.admin.update', compact('admin', 'roles'));
@@ -88,12 +100,16 @@ class AdminController extends Controller
     public function update(AdminRequest $request, $id): RedirectResponse
     {
         $validated = $request->validated();
-        $result = $this->service->update($id, $validated);
-
-        if ($result['success']) {
+        try {
+            $this->service->update($id, $validated);
             return redirect()->route('admin.index')->with('success', 'Data admin berhasil diperbarui');
+        } catch (ResourceNotFoundException $e) {
+            return redirect()->route('admin.index')->with('error', $e->getMessage());
+        } catch (DataAccessException $e) {
+            return back()->withErrors(['error' => 'Gagal memperbarui data admin. Silakan coba lagi.'])->withInput();
+        } catch (Throwable $e) {
+            return back()->withErrors(['error' => 'Terjadi kesalahan tak terduga saat memperbarui data.'])->withInput();
         }
-        return back()->withErrors(['error' => 'Gagal memperbarui data admin.'])->withInput();
     }
 
     /**
@@ -101,11 +117,16 @@ class AdminController extends Controller
      */
     public function destroy(string $id): RedirectResponse
     {
-        $result = $this->service->delete($id);
-        if ($result['success']) {
+        try {
+            $this->service->delete($id);
             return redirect()->route('admin.index')->with('success', 'Data berhasil dihapus');
+        } catch (ResourceNotFoundException $e) {
+            return redirect()->route('admin.index')->with('error', $e->getMessage());
+        } catch (DataAccessException $e) {
+            return redirect()->route('admin.index')->with('error', 'Gagal menghapus data admin. Silakan coba lagi.');
+        } catch (Throwable $e) {
+            return redirect()->route('admin.index')->with('error', 'Terjadi kesalahan tak terduga saat menghapus data.');
         }
-        return redirect()->route('admin.index')->with('error', 'Data gagal dihapus');
     }
 
     public function viewProfile(): View
@@ -115,20 +136,28 @@ class AdminController extends Controller
         return view('pages.profile.profile', compact('user'));
     }
 
-    public function updateProfile(ProfileRequest $request, $id)
+    public function updateProfile(ProfileRequest $request, $id): ?RedirectResponse
     {
-        $result = $this->service->update($id, $request->validated());
-
-        if ($result['success']) {
+        $validated = $request->validated();
+        try {
+            $this->service->update($id, $validated);
             return redirect()->back()->with('success', 'Data profile berhasil diperbarui');
+        } catch (ResourceNotFoundException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        } catch (DataAccessException $e) {
+            return redirect()->back()->with('error', 'Data profile gagal diperbarui. Silakan coba lagi.');
+        } catch (Throwable $e) {
+            return redirect()->back()->with('error', 'Terjadi kesalahan tak terduga saat memperbarui profile.');
         }
-
-        return redirect()->back()->with('error', 'Data profile gagal diperbarui');
     }
 
     public function downloadTemplate()
     {
-        return Excel::download(new AdminTemplate(), 'data_admin.xlsx');
+        try {
+            return Excel::download(new AdminTemplate(), 'data_admin_template.xlsx');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh template.');
+        }
     }
 
     public function import(FileExcelRequest $request): RedirectResponse
@@ -136,26 +165,38 @@ class AdminController extends Controller
         $data = $request->validated();
 
         try {
-            $import = new AdminImport();
-            Excel::import($import, $data['file']);
-
-            $failures = $import->getFailures();
+            $failures = $this->service->import($data['file']);
 
             if (!empty($failures)) {
                 return redirect()->route('admin.index')->with([
-                    'success' => 'Data berhasil diimport, namun ada beberapa data yang gagal.',
+                    'error' => 'Data berhasil diimport, namun ada beberapa data yang gagal diproses.',
                     'failures' => $failures
                 ]);
             }
 
             return redirect()->route('admin.index')->with('success', 'Data berhasil diimport');
-        } catch (\Exception $e) {
-            return redirect()->route('admin.index')->with('error', $e->getMessage());
+
+        } catch (ImportFailedException $e) {
+            return redirect()->route('admin.index')->with([
+                'error' => $e->getMessage(),
+                'failures' => $e->getFailures()
+            ]);
+        } catch (DataAccessException $e) {
+            return redirect()->route('admin.index')->with('error', 'Terjadi kesalahan database saat mengimport data.');
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.index')->with('error', 'Terjadi kesalahan tak terduga saat mengimport data.');
         }
     }
 
     public function export()
     {
-        return Excel::download(new AdminExport(), 'data_admin.xlsx');
+        try {
+            $exporter = $this->service->export();
+            return Excel::download($exporter, 'data_admin.xlsx');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->with('error', 'Gagal menyiapkan data untuk export.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh data export.');
+        }
     }
 }

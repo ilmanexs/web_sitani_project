@@ -54,7 +54,7 @@ class KecamatanImport implements ToModel, WithValidation, SkipsOnFailure, WithHe
             'nama.required' => 'Nama harus diisi.',
             'nama.min' => 'Nama tidak boleh kurang dari 3 karakter.',
             'nama.max' => 'Nama tidak boleh lebih dari 50 karakter.',
-            'nama.regex' => 'Nama hanya boleh huruf dan angka.',
+            'nama.regex' => 'Nama hanya boleh huruf dan spasi.',
         ];
     }
 

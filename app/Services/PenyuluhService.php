@@ -2,252 +2,177 @@
 
 namespace App\Services;
 
-use App\Repositories\Interfaces\CrudInterface;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Repositories\Interfaces\PenyuluhRepositoryInterface;
-use Illuminate\Support\Facades\Log;
+use App\Services\Interfaces\PenyuluhServiceInterface;
+use App\Trait\LoggingError;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Throwable;
 
-class PenyuluhService
+class PenyuluhService implements PenyuluhServiceInterface
 {
-    protected CrudInterface $crudRepository;
+    use LoggingError;
+
     protected PenyuluhRepositoryInterface $repository;
 
-    /**
-     * @param CrudInterface $crudRepository
-     */
-    public function __construct(CrudInterface $crudRepository, PenyuluhRepositoryInterface $repository)
+    public function __construct(PenyuluhRepositoryInterface $repository)
     {
-        $this->crudRepository = $crudRepository;
         $this->repository = $repository;
     }
 
     /**
-     * Mengambil semua data penyuluh.
-     *
-     * @return array Data penyuluh
+     * @inheritDoc
+     * @param bool $withRelations
+     * @return Collection
+     * @throws DataAccessException
      */
-    public function getAll(): array
+    public function getAll(bool $withRelations = false): Collection
     {
         try {
-            $penyuluhs = $this->crudRepository->getAll();
-
-            if ($penyuluhs->isNotEmpty()) {
-                return [
-                    'success' => true,
-                    'message' => 'Data penyuluh berhasil diambil',
-                    'data' => $penyuluhs,
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Data penyuluh gagal diambil',
-                'data' => []
-            ];
-
+            return $this->repository->getAll(true, []);
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, [], 'Database error saat mengambil semua data penyuluh.');
+            throw new DataAccessException('Gagal mengambil data penyuluh.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat mengambil data penyuluh.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data penyuluh.',
-                'data' => []
-            ];
+            $this->LogGeneralException($e, [], 'Terjadi kesalahan tak terduga saat mengambil semua data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mengambil data penyuluh.', 0, $e);
         }
     }
 
     /**
-     * Mengambil data penyuluh berdasarkan ID.
-     *
-     * @param string|int $id ID Penyuluh
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @return Model
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function find(string|int $id): array
+    public function getById(string|int $id): Model
     {
         try {
-            $penyuluh = $this->crudRepository->getById($id);
+            $penyuluh = $this->repository->getById($id);
 
-            if (!empty($penyuluh)) {
-                return [
-                    'success' => true,
-                    'message' => 'Data penyuluh berhasil diambil',
-                    'data' => $penyuluh,
-                ];
+            if (!$penyuluh) {
+                throw new ResourceNotFoundException('Data penyuluh dengan id ' . $id . ' tidak ditemukan.');
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data penyuluh dengan id ' . $id . ' tidak ditemukan.',
-                'data' => [],
-            ];
-        } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat mengambil data penyuluh berdasarkan ID.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => [
-                    'id_penyuluh' => $id,
-                ],
-            ]);
+            return $penyuluh;
 
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data penyuluh.',
-                'data' => [],
-            ];
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['id' => $id], 'Database error saat mencari data penyuluh berdasarkan ID.');
+            throw new DataAccessException('Gagal mengambil data penyuluh.', 0, $e);
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id], 'Terjadi kesalahan tak terduga saat mencari data penyuluh berdasarkan ID.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mengambil data penyuluh.', 0, $e);
         }
     }
 
     /**
-     * Membuat data penyuluh baru.
-     *
-     * @param array $data Data penyuluh
-     * @return array
+     * @inheritDoc
+     * @param array $data
+     * @return Model|null
+     * @throws DataAccessException
      */
-    public function create(array $data): array
+    public function create(array $data): ?Model
     {
         try {
-            $penyuluh = $this->crudRepository->create($data);
+            $penyuluh = $this->repository->create($data);
 
-            if (!empty($penyuluh)) {
-                $penyuluh->makeHidden(['created_at', 'updated_at', 'user_id', 'penyuluh_terdaftar_id']);
-                return [
-                    'success' => true,
-                    'message' => 'Data penyuluh berhasil disimpan',
-                    'data' => $penyuluh,
-                ];
+            if (!$penyuluh) {
+                $this->LogGeneralException(new \Exception('Repository create returned null.'), $data, 'Repository gagal membuat penyuluh.');
+                throw new DataAccessException('Gagal membuat data penyuluh.');
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data penyuluh gagal disimpan',
-                'data' => [],
-            ];
+            return $penyuluh;
 
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, $data, 'Database error saat membuat data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan saat registrasi.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat membuat data penyuluh.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $data,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat registrasi.',
-                'data' => [],
-            ];
+            $this->LogGeneralException($e, $data, 'Terjadi kesalahan tak terduga saat membuat data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat registrasi.', 0, $e);
         }
     }
 
     /**
-     * Memperbarui data penyuluh berdasarkan ID.
-     *
-     * @param string|int $id ID Penyuluh
-     * @param array $data Data Penyuluh
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @param array $data
+     * @return bool
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function update(string|int $id, array $data): array
+    public function update(string|int $id, array $data): bool
     {
         try {
-            $updated = $this->crudRepository->update($id, $data);
+            return $this->repository->update($id, $data);
 
-            if ($updated) {
-                return [
-                    'success' => true,
-                    'message' => 'Data penyuluh berhasil diperbarui.',
-                    'data' => $data,
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengupdate data penyuluh.',
-                'data' => [],
-            ];
+        } catch (ModelNotFoundException $e) {
+            $this->LogNotFoundException($e, ['id' => $id], 'Penyuluh tidak ditemukan untuk diupdate.');
+            throw new ResourceNotFoundException('Data penyuluh dengan id ' . $id . ' tidak ditemukan.', 0, $e);
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['id' => $id, 'data_baru' => $data], 'Database error saat memperbarui data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan saat mengupdate data penyuluh.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat memperbarui data penyuluh.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => [
-                    'penyuluh_id' => $id,
-                    'penyuluh' => $data,
-                ],
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mengupdate data penyuluh.',
-                'data' => [],
-            ];
+            $this->LogGeneralException($e, ['id' => $id, 'data_baru' => $data], 'Terjadi kesalahan tak terduga saat memperbarui data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mengupdate data penyuluh.', 0, $e);
         }
     }
 
     /**
-     * Menghapus data penyuluh berdasarkan ID.
-     *
-     * @param int $id
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @return bool
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function delete(int $id): array
+    public function delete(string|int $id): bool
     {
         try {
-            $deleted = $this->crudRepository->delete($id);
+            return $this->repository->delete($id);
 
-            if ($deleted) {
-                return [
-                    'success' => true,
-                    'message' => 'Data penyuluh berhasil dihapus.',
-                    'data' => [
-                        'penyuluh_id' => $id,
-                    ]
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menghapus data penyuluh.',
-                'data' => [],
-            ];
+        } catch (ModelNotFoundException $e) {
+            $this->LogNotFoundException($e, ['id' => $id], 'Penyuluh tidak ditemukan untuk dihapus.');
+            throw new ResourceNotFoundException('Data penyuluh dengan id ' . $id . ' tidak ditemukan.', 0, $e);
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['id' => $id], 'Database error saat menghapus data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan saat menghapus data penyuluh.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghapus data penyuluh.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => [
-                    'penyuluh_id' => $id,
-                ]
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat menghapus data penyuluh.',
-                'data' => [],
-            ];
+            $this->LogGeneralException($e, ['id' => $id], 'Terjadi kesalahan tak terduga saat menghapus data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menghapus data penyuluh.', 0, $e);
         }
     }
 
-    /**
-     * Mengambil total penyuluh yang terdafar di mobile sitani
-     *
-     * @throws \Exception
-     */
     public function calculateTotal(): int
     {
         try {
             return $this->repository->calculateTotal();
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, [], 'Database error saat menghitung total data penyuluh.');
+            throw new DataAccessException('Gagal menghitung total penyuluh.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghitung total data penyuluh.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw new \Exception($e->getMessage(), 500);
+            $this->LogGeneralException($e, [], 'Terjadi kesalahan tak terduga saat menghitung total data penyuluh.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menghitung total penyuluh.', 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @throws DataAccessException
+     */
+    public function existsByPenyuluhTerdaftarId(int|string $penyuluhTerdaftarId): bool
+    {
+        try {
+            return $this->repository->existsByPenyuluhTerdaftarId($penyuluhTerdaftarId);
+        } catch (QueryException $e) {
+            throw new DataAccessException('Gagal mengecek akun penyuluh.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mengecek akun penyuluh.', 0, $e);
         }
     }
 }

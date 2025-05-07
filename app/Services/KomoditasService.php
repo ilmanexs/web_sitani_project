@@ -2,247 +2,201 @@
 
 namespace App\Services;
 
-use App\Repositories\Interfaces\CrudInterface;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ImportFailedException;
+use App\Exceptions\ResourceNotFoundException;
+use App\Exports\KomoditasExport;
+use App\Imports\KomoditasImport;
 use App\Repositories\Interfaces\KomoditasRepositoryInterface;
-use Exception;
-use Illuminate\Support\Facades\Log;
+use App\Services\Interfaces\KomoditasServiceInterface;
+use App\Trait\LoggingError;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Database\Eloquent\Model;
 use Throwable;
 
-class KomoditasService
+class KomoditasService implements KomoditasServiceInterface
 {
+    use LoggingError;
 
-    protected CrudInterface $crudRepository;
     protected KomoditasRepositoryInterface $repository;
 
-    public function __construct(CrudInterface $crudRepository, KomoditasRepositoryInterface $repository)
+    public function __construct(KomoditasRepositoryInterface $repository)
     {
-        $this->crudRepository = $crudRepository;
         $this->repository = $repository;
     }
 
     /**
-     * Mengambil semua data komoditas
-     *
-     * @return array
+     * @inheritDoc
+     * @param bool $withRelations
+     * @return Collection
+     * @throws DataAccessException
      */
-    public function getAll(): array
+    public function getAll(bool $withRelations = false): Collection
     {
         try {
-            $komoditas = $this->crudRepository->getAll();
-
-            if ($komoditas->isNotEmpty()) {
-                return [
-                    'success' => true,
-                    'message' => 'Semua data komoditas berhasil diambil',
-                    'data' => $komoditas
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Data komoditas tidak ditemukan',
-                'data' => []
-            ];
+            return $this->repository->getAll($withRelations, []);
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat fetch data komoditas.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat mengambil data komoditas.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data komoditas.',
-                'data' => []
-            ];
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat fetch data komoditas.', 0, $e);
         }
     }
 
     /**
-     * Mengambil data komoditas berdasarkan ID
-     *
-     * @param string|int $id Id komoditas
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @return Model
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function getById(string|int $id): array
+    public function getById(string|int $id): Model
     {
         try {
-            $komoditas = $this->crudRepository->getById($id);
+            $komoditas = $this->repository->getById($id);
 
-            if (!empty($komoditas)) {
-                return [
-                    'success' => true,
-                    'message' => 'Data komoditas ditemukan',
-                    'data' => $komoditas
-                ];
+            if ($komoditas === null) {
+                throw new ResourceNotFoundException("Komoditas dengan id {$id} tidak ditemukan.");
             }
-
-            return [
-                'success' => false,
-                'message' => 'Data komoditas tidak ditemukan',
-                'data' => []
-            ];
+            return $komoditas;
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat fetch data komoditas dengan id {$id} .", 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat mengambil data komoditas berdasarkan ID.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data komoditas.',
-                'data' => []
-            ];
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat fetch data komoditas dengan id {$id} .", 0, $e);
         }
     }
 
     /**
-     * Membuat data komoditas
-     *
-     * @param array $data Data komoditas
-     * @return array
+     * @inheritDoc
+     * @param array $data
+     * @return Model
+     * @throws DataAccessException
      */
-    public function create(array $data): array
+    public function create(array $data): Model
     {
         try {
-            $komoditas = $this->crudRepository->create($data);
+            $komoditas = $this->repository->create($data);
 
-            if (!empty($komoditas)) {
-                return [
-                    'success' => true,
-                    'message' => 'Data komoditas berhasil disimpan',
-                    'data' => $komoditas
-                ];
+            if ($komoditas === null) {
+                throw new DataAccessException('Gagal menyimpan data komoditas di repository.');
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data komoditas gagal disimpan',
-                'data' => []
-            ];
+            return $komoditas;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menyimpan data komoditas.', 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat menyimpan data komoditas.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menyimpan data komoditas.',
-                'data' => []
-            ];
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menyimpan data komoditas.', 0, $e);
         }
     }
 
     /**
-     * Memperbarui data komoditas
-     *
-     * @param string|int $id Id komoditas
-     * @param array $data Data komoditas baru
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @param array $data
+     * @return bool
+     * @throws DataAccessException
      */
-    public function update(string|int $id, array $data): array
+    public function update(string|int $id, array $data): bool
     {
         try {
-            $result = $this->crudRepository->update($id, $data);
+            $result = $this->repository->update($id, $data);
 
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Data komoditas berhasil diperbarui',
-                    'data' => $data
-                ];
+            if(!$result) {
+                throw new DataAccessException("Gagal memperbarui komoditas dengan id {$id} direpository.");
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data komoditas gagal diperbarui',
-                'data' => []
-            ];
+            return (bool) $result;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat memperbarui komoditas dengan id {$id}.", 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat memperbarui data komoditas.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal memperbarui data komoditas.',
-                'data' => []
-            ];
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat memperbarui data komoditas dengan id {$id}.", 0, $e);
         }
     }
 
     /**
-     * Menghapus data komoditas
-     *
-     * @param string|int $id Id komoditas
-     * @return array
+     * @inheritDoc
+     * @param string|int $id
+     * @return bool
+     * @throws DataAccessException
      */
-    public function delete(string|int $id): array
+    public function delete(string|int $id): bool
     {
         try {
-            $result = $this->crudRepository->delete($id);
+            $result = $this->repository->delete($id);
 
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Data komoditas berhasil dihapus',
-                    'data' => ['id' => $id]
-                ];
+            if (!$result) {
+                throw new DataAccessException("Gagal menghapus data komoditas dengan id {$id} di repository.");
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data komoditas gagal dihapus',
-                'data' => []
-            ];
+            return (bool) $result;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat menghapus data komoditas dengan id {$id}.", 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghapus data komoditas.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menghapus data komoditas.',
-                'data' => []
-            ];
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat menghapus data komoditas dengan id {$id}.", 0, $e);
         }
     }
 
     /**
-     * Mengambil total komoditas yang terdaftar disitani
-     *
-     * @throws Exception
+     * @inheritDoc
+     * @return int
+     * @throws DataAccessException
      */
-    public function calculateTotal(): int
+    public function getTotal(): int
     {
         try {
             return $this->repository->calculateTotal();
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menghitung total komoditas.', 0, $e);
         } catch (Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghitung total record data', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw new Exception('Gagal menghitung total record data.', 500);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menghitung total komoditas.', 0, $e);
         }
     }
 
     /**
-     * @throws Throwable
+     * @inheritDoc
+     * @param mixed $file
+     * @return array
+     * @throws DataAccessException
+     * @throws ImportFailedException
      */
-    public function getMusim()
+    public function import(mixed $file): array
     {
         try {
-            return $this->repository->GetMusim();
+            $import = new KomoditasImport();
+            Excel::import($import, $file);
+
+            return $import->getFailures();
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            throw new ImportFailedException("Validasi data saat import Gagal.", 0, $e, collect($failures));
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat import data.", 0, $e);
         } catch (Throwable $e) {
-            throw $e;
+            throw new ImportFailedException("Terjadi kesalahan tak terduga saat import data.", 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @return FromCollection
+     * @throws DataAccessException
+     */
+    public function export(): FromCollection
+    {
+        try {
+            return new KomoditasExport();
+        } catch (Throwable $e) {
+            throw new DataAccessException("Gagal export data.", 0, $e);
         }
     }
 }

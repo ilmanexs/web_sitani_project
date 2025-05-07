@@ -2,10 +2,11 @@
 
 namespace App\Repositories\Interfaces;
 
-use Illuminate\Database\Eloquent\Collection;
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 
-interface PenyuluhTerdaftarRepositoryInterface
+interface PenyuluhTerdaftarRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Mengambil data penyuluh terdaftar berdasarkan Id kecamatan

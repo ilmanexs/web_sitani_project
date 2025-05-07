@@ -65,7 +65,7 @@ class AdminImport implements ToModel, WithValidation, SkipsOnFailure, WithHeadin
         ];
     }
 
-    public function customValidationMessage(): array
+    public function customValidationMessages(): array
     {
         return [
             'nama_lengkap.required' => 'Nama wajib diisi!',

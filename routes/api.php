@@ -54,8 +54,10 @@ Route::controller(BibitController::class)->group(function () {
  * Route untuk mengambil seluruh data komoditas dan berdasarkan id komoditas
  */
 Route::controller(KomoditasController::class)->group(function () {
-    Route::get('komoditas/musim', 'getTotalMusim')->withoutMiddleware(JwtMiddleware::class);
-    Route::get('komoditas/{id}','getById');
+    Route::get('komoditas/musim', 'getMusim');
+    Route::get('komoditas/count', 'calculateTotal');
+    Route::get('komoditas/bibit', 'getAllWithBibit');
+    Route::get('komoditas/{id}','show');
     Route::get('komoditas','getAll');
 });
 
@@ -63,10 +65,11 @@ Route::controller(KomoditasController::class)->group(function () {
  * Route untuk mengambil data kelompok tani berdasarkan id penyuluh dan id kelompok tani
  */
 Route::controller(KelompokTaniController::class)->group(function () {
-    Route::get('kelompok-tani', 'getAllByPenyuluhId');
+    Route::get('kelompok-tani/kecamatan/{id}/count','countByKecamatanId');
+    Route::get('kelompok-tani/kecamatan/{id}', 'getAllByKecamatanId');
     Route::get('kelompok-tani/count','calculateTotal');
     Route::get('kelompok-tani/{id}', 'getById');
-    Route::get('kelompok-tani/kecamatan/{id}/count','countByKecamatanId');
+    Route::get('kelompok-tani', 'getAllByPenyuluhId');
 });
 
 /**
@@ -74,6 +77,7 @@ Route::controller(KelompokTaniController::class)->group(function () {
  */
 Route::controller(LaporanBibitController::class)->group(function () {
     Route::post('laporan-kondisi', 'saveReport');
+    Route::get('laporan-kondisi/count/kecamatan/{id}', 'getTotalByKecamatanId');
     Route::get('laporan-kondisi/count/{id}', 'getLaporanStatusCounts');
-    Route::get('history-laporan/{id}', 'getByPenyuluhId');
+    Route::get('history-laporan/{id}', 'getByKecamatanId');
 });

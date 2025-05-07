@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LaporanKondisiDetail extends Model
 {
@@ -13,13 +14,14 @@ class LaporanKondisiDetail extends Model
         'jenis_bibit',
         'foto_bibit',
         'lokasi_lahan',
+        'path_foto_lokasi',
     ];
 
 
     /**
      * Relasi one to one dengan model Laporan kondisi
-     * 
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<LaporanKondisi, LaporanKondisiDetail>
+     *
+     * @return BelongsTo<LaporanKondisi, LaporanKondisiDetail>
      */
     public function laporanKondisi()
     {

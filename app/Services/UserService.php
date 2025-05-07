@@ -3,14 +3,23 @@
 namespace App\Services;
 
 use App\Events\OtpGenerated;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\InvalidOtpException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Models\User;
 use App\Repositories\Interfaces\AuthInterface;
+use App\Services\Interfaces\UserServiceInterface;
+use App\Trait\LoggingError;
 use Exception;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Database\QueryException;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
-class UserService
+
+class UserService implements UserServiceInterface
 {
+    use LoggingError;
+
     protected AuthInterface $repository;
 
     public function __construct(AuthInterface $repository)
@@ -19,201 +28,158 @@ class UserService
     }
 
     /**
-     * Mencari data pengguna berdasarkan conditions dan relations
-     *
-     * @param array $conditions Kondisi untuk memfilter pencarian
-     * @param array $relations Relasi, set null jika tidak ingin mengambil beserta relasi
-     * @return array
+     * @inheritDoc
+     * @param array $conditions
+     * @param array $relations
+     * @return User|null
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function findUser(array $conditions, array $relations = []): array
+    public function findUser(array $conditions, array $relations = []): ?User
     {
         try {
-            $user = $this->repository->findUser($conditions, false, $relations);
-            if ($user !== null) {
-                return [
-                    'success' => true,
-                    'message' => 'Data pengguna ditemukan',
-                    'data' => $user,
-                    'code' => 200,
-                ];
+            $user = $this->repository->findUser($conditions, $relations);
+            if ($user === null) {
+                throw new ResourceNotFoundException('User tidak ditemukan');
             }
-
-            return [
-                'success' => false,
-                'message' => 'Data pengguna tidak ditemukan',
-                'data' => [],
-                'code' => 404,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat mencari data pengguna', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mencari data pengguna.',
-                'data' => [],
-                'code' => 500,
-            ];
+            return $user;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat mencari data pengguna.', 0, $e);
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mencari data pengguna.', 0, $e);
         }
     }
 
     /**
-     * Reset kata sandi pengguna
-     *
-     * @param User $user Model user yang akan diperbarui
-     * @param string $password Password baru
-     * @return array
+     * @inheritDoc
+     * @param User $user
+     * @param string $password
+     * @return bool
+     * @throws DataAccessException
      */
-    public function resetPassword(User $user, string $password): array
+    public function resetPassword(User $user, string $password): bool
     {
         try {
             $result = $this->repository->resetPassword($user, bcrypt($password));
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Kata sandi berhasil diperbarui',
-                    'code' => 200,
-                ];
+
+            if (!$result) {
+                throw new DataAccessException('Gagal menyimpan kata sandi pengguna di repository.');
             }
 
-            return [
-                'success' => false,
-                'message' => 'Gagal memperbarui kata sandi pengguna',
-                'data' => [],
-                'code' => 500,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat memperbarui kata sandi pengguna', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat memperbarui kata sandi pengguna',
-                'data' => [],
-                'code' => 500,
-            ];
+            return true;
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Database error saat memperbarui kata sandi pengguna.', 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat memperbarui kata sandi pengguna', 0, $e);
         }
     }
 
     /**
-     * Mengirim kode otp ke email
-     *
-     * @param User $user Model user yang akan dikirim otp
-     * @return array
+     * @inheritDoc
+     * @param User $user
+     * @return string
+     * @throws DataAccessException
      */
-    public function sendOtpToEmail(User $user): array
+    public function sendOtpToEmail(User $user): string
     {
         try {
             $code = $this->repository->generateAndSaveOtp($user);
             event(new OtpGenerated($user, $code));
-            return [
-                'success' => true,
-                'message' => 'Kode OTP berhasil dikirim',
-                'data' => [],
-                'code' => 200,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat generate dan kirim kode OTP', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mengirim kode OTP',
-                'data' => [],
-                'code' => 500,
-            ];
+            return $code;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat generate dan kirim kode OTP', 0, $e);
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat generate dan kirim kode OTP', 0, $e);
         }
     }
 
     /**
-     * Memverifikasi kode OTP
-     *
-     * @param User $user Model user yang akan divalidasi OTPnya
-     * @param array $data Kode OTP
-     * @return array
+     * @inheritDoc
+     * @param User $user
+     * @param array $data
+     * @return bool
+     * @throws DataAccessException
+     * @throws InvalidOtpException
      */
-    public function verifyOtp(User $user, array $data): array
+    public function verifyOtp(User $user, array $data): bool
     {
         try {
-            $otp = implode('', $data['otp']);
-            $result = $this->repository->validateOtp($user, $otp);
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Kode OTP terverifikasi',
-                    'data' => ['OTP' => $otp],
-                    'code' => 200,
-                ];
-            }
 
-            return [
-                'success' => false,
-                'message' => 'Kode OTP salah atau kadaluarsa',
-                'data' => [],
-                'code' => 401,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat memvalidasi kode OTP', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat memvalidasi kode OTP',
-                'data' => [],
-                'code' => 500,
-            ];
+            $code = implode('', $data['otp']);
+
+            $result = $this->repository->validateOtp($user, $code);
+
+            if (!$result) {
+                throw new InvalidOtpException('Kode OTP tidak valid.', Response::HTTP_UNAUTHORIZED);
+            }
+            $this->invalidateOtps($user);
+            return true;
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Database error saat memvalidasi kode OTP', 0, $e);
+        } catch (Exception $e) {
+            $this->LogGeneralException($e, ['user_id' => $user->id]);
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat memvalidasi kode OTP', 0, $e);
         }
     }
 
     /**
-     * Menghapus kode OTP
-     *
-     * @param User $user Model user yang akan dihapus kode OTPnya
+     * @inheritDoc
+     * @param User $user
      * @return void
+     * @throws DataAccessException
      */
     public function invalidateOtps(User $user): void
     {
         try {
             $this->repository->invalidateOtps($user);
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghapus kode OTP', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+        } catch (QueryException $e) {
+            $this->LogSqlException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Database error saat menghapus kode OTP', 0, $e);
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['user_id' => $user->id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menghapus kode OTP', 0, $e);
         }
     }
 
     /**
-     * Reset Password Flow, menggabungkan proses reset password menggunakan otp dan tidak(profile)
-     *
-     * @param string $email email penyuluh
-     * @param string $newPassword password baru
-     * @param bool $invalidateOtp counter, default false, set true jika menggunakan otp
-     * @return array
+     * @inheritDoc
+     * @param string $email
+     * @param string $newPassword
+     * @param bool $invalidateOtp
+     * @return bool
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function processPasswordResetFlow(string $email, string $newPassword, bool $invalidateOtp = false): array
+    public function processPasswordResetFlow(string $email, string $newPassword, bool $invalidateOtp = false): bool
     {
-        $findUserResult = $this->findUser(['email' => $email]);
+        try {
+            $user = $this->findUser(['email' => $email]);
 
-        if (!$findUserResult['success']) {
-            return $findUserResult;
+            if ($invalidateOtp) {
+                $this->invalidateOtps($user);
+            }
+            return $this->resetPassword($user, $newPassword);
+
+        } catch (ResourceNotFoundException $e) {
+            $this->LogNotFoundException($e, ['email' => $email], 'User tidak ditemukan untuk reset password flow.');
+            throw $e;
+        } catch (DataAccessException $e) {
+            $this->LogGeneralException($e, ['email' => $email], 'Terjadi kesalahan data pada proses reset password flow.');
+            throw new DataAccessException('Terjadi kesalahan pada proses reset password.');
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['email' => $email], 'Terjadi kesalahan tak terduga pada proses reset password flow.');
+            throw new DataAccessException('Terjadi kesalahan tak terduga pada proses reset password.');
         }
-
-        $user = $findUserResult['data'];
-
-        if ($invalidateOtp) {
-            $this->invalidateOtps($user);
-        }
-
-        return $this->resetPassword($user, $newPassword);
     }
 }

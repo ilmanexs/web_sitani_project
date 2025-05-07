@@ -2,7 +2,9 @@
 
 namespace App\Repositories\Interfaces;
 
-interface BibitRepositoryInterface
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
+
+interface BibitRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Menghitung total Bibit Berkualitas yang terdaftar di aplikasi

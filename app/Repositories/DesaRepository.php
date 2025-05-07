@@ -2,20 +2,27 @@
 
 namespace App\Repositories;
 
+use App\Exceptions\DataAccessException;
 use App\Models\Desa;
-use App\Repositories\Interfaces\CrudInterface;
-use App\Repositories\Interfaces\DesaRepositoryInterface;
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
 use App\Trait\LoggingError;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Throwable;
 
-class DesaRepository implements CrudInterface, DesaRepositoryInterface
+class DesaRepository implements BaseRepositoryInterface
 {
-
     use LoggingError;
 
-    public function getAll(bool $withRelations = false): Collection|array
+    /**
+     * @inheritDoc
+     * @param bool $withRelations
+     * @param array $criteria
+     * @return Collection|array
+     * @throws DataAccessException
+     */
+    public function getAll(bool $withRelations = false, array $criteria = []): Collection|array
     {
         try {
             $query = Desa::select(['id', 'nama', 'kecamatan_id']);
@@ -25,69 +32,124 @@ class DesaRepository implements CrudInterface, DesaRepositoryInterface
             return $query->get();
         } catch (QueryException $e) {
             $this->LogSqlException($e);
-            return Collection::make();
-        } catch (\Throwable $e) {
-            return Collection::make();
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 
-    public function getById(string|int $id): Model|Collection|array|null
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return Model|null
+     * @throws DataAccessException
+     */
+    public function getById(string|int $id): ?Model
     {
         try {
             return Desa::where('id', $id)->with(['kecamatan:id,nama'])->first();
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id]);
-            return null;
-        } catch (\Throwable $e) {
-            return null;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 
+    /**
+     * @inheritDoc
+     * @param array $data
+     * @return Model|null
+     * @throws DataAccessException
+     */
     public function create(array $data): ?Model
     {
         try {
             return Desa::create($data);
         } catch (QueryException $e) {
             $this->LogSqlException($e, $data);
-            return null;
-        } catch (\Throwable $e) {
-            return null;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['data' => $data]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 
-    public function update(string|int $id, array $data): Model|bool|int
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @param array $data
+     * @return bool|int
+     * @throws DataAccessException
+     */
+    public function update(string|int $id, array $data): bool|int
     {
         try {
             return Desa::where('id', $id)->update($data);
         } catch (QueryException $e) {
-            $this->LogSqlException($e, ['data_baru' => $data]);
-            return false;
-        } catch (\Throwable $e) {
-            return false;
+            $this->LogSqlException($e, ['id' => $id, 'data_baru' => $data]);
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id, 'data_baru' => $data]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 
-    public function delete(string|int $id): Model|bool|int
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return bool|int
+     * @throws DataAccessException
+     */
+    public function delete(string|int $id): bool|int
     {
         try {
             return Desa::destroy($id);
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id]);
-            return false;
-        } catch (\Throwable $e) {
-            return false;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 
+    /**
+     * @inheritDoc
+     * @param int|string $id
+     * @return Collection
+     * @throws DataAccessException
+     */
     public function getByKecamatanId(int|string $id): Collection
     {
         try {
             return Desa::select(['id', 'nama'])->where('kecamatan_id', $id)->get();
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id]);
-            return Collection::make();
-        } catch (\Throwable $e) {
-            return Collection::make();
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @return int
+     * @throws DataAccessException
+     */
+    public function calculateTotal(): int
+    {
+        try {
+            return Desa::count();
+        } catch (QueryException $e) {
+            $this->LogSqlException($e);
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' . __METHOD__, 0, $e);
         }
     }
 }

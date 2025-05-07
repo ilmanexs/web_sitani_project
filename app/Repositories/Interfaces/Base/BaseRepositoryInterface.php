@@ -1,27 +1,28 @@
 <?php
 
-namespace App\Repositories\Interfaces;
+namespace App\Repositories\Interfaces\Base;
 
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
-interface CrudInterface
+interface BaseRepositoryInterface
 {
     /**
      * Mengambil seluruh data
      *
      * @param bool $withRelations Default false, set true untuk mengambil data beserta relasi
+     * @param array $criteria Set dengan nilai dari query parameter untuk menerapkan pencarian data berdasarkan query parameter
      * @return Collection|array Data
      */
-    public function getAll(bool $withRelations = false): Collection|array;
+    public function getAll(bool $withRelations = false, array $criteria = []): Collection|array;
 
     /**
      * Mengambil data berdasarkan id
      *
      * @param string|int $id Id data
-     * @return Model|Collection|array|null
+     * @return ?Model
      */
-    public function getById(string|int $id): Model|Collection|array|null;
+    public function getById(string|int $id): ?Model;
 
     /**
      * Membuat data baru
@@ -36,15 +37,15 @@ interface CrudInterface
      *
      * @param string|int $id Id data
      * @param array $data Data baru
-     * @return Model|int|bool
+     * @return bool
      */
-    public function update(string|int $id, array $data): Model|int|bool;
+    public function update(string|int $id, array $data): bool|int;
 
     /**
      * Menghapus data
      *
      * @param string|int $id Id data
-     * @return Model|int|bool
+     * @return bool
      */
-    public function delete(string|int $id): Model|int|bool;
+    public function delete(string|int $id): bool|int;
 }

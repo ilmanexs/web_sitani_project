@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdatePenyuluhTerdaftarApiRequest;
 use App\Http\Resources\PenyuluhTerdaftarResource;
 use App\Services\PenyuluhService;
 use App\Services\PenyuluhTerdaftarService;
 use App\Trait\ApiResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class PenyuluhController extends Controller
 {
@@ -33,16 +37,20 @@ class PenyuluhController extends Controller
     public function update(UpdatePenyuluhTerdaftarApiRequest $request, string|int $id): JsonResponse
     {
         $validated = $request->validated();
-        $result = $this->penyuluhTerdaftarService->update($id, [
-            'nama' => $validated['nama_penyuluh'],
-            'alamat' => $validated['alamat_penyuluh'],
-        ]);
+        try {
+            $this->penyuluhTerdaftarService->update($id, [
+                'nama' => $validated['nama_penyuluh'],
+                'alamat' => $validated['alamat_penyuluh'],
+            ]);
 
-        if ($result['success']) {
-            $data = $this->penyuluhTerdaftarService->getById($validated['id']);
-            return $this->successResponse(new PenyuluhTerdaftarResource($data['data']), 'Data penyuluh berhasil diperbarui');
+            $penyuluh = $this->penyuluhTerdaftarService->getById($id);
+            return $this->successResponse(new PenyuluhTerdaftarResource($penyuluh), 'Data Penyuluh berhasil diperbarui');
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse('Data penyuluh tidak ditemukan.', Response::HTTP_NOT_FOUND);
+        } catch (DataAccessException) {
+            return $this->errorResponse('Data penyuluh gagal diperbarui', Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (QueryException|\Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return $this->errorResponse('Data penyuluh gagal diperbarui', 500);
     }
 }

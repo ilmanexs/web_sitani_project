@@ -2,305 +2,176 @@
 
 namespace App\Services;
 
-use App\Models\LaporanKondisi;
-use App\Repositories\Interfaces\CrudInterface;
-use App\Repositories\Interfaces\LaporanRepositoryInterface;
-use Exception;
-use Illuminate\Support\Facades\Log;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
+use App\Repositories\Interfaces\LaporanBibitRepositoryInterface;
+use App\Services\Api\LaporanBibitApiService;
+use App\Services\Interfaces\LaporanBibitServiceInterface;
+use App\Trait\LoggingError;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Model;
+use Throwable;
 
-class LaporanBibitService
+class LaporanBibitService implements LaporanBibitServiceInterface
 {
+    use LoggingError;
 
-    protected CrudInterface $crudRepository;
-    protected LaporanRepositoryInterface $repository;
+    protected LaporanBibitRepositoryInterface $repository;
 
-    public function __construct(CrudInterface $crudRepository, LaporanRepositoryInterface $repository)
+    public function __construct(LaporanBibitRepositoryInterface $repository)
     {
-        $this->crudRepository = $crudRepository;
         $this->repository = $repository;
     }
 
     /**
-     * Mengambil seluruh data laporan bibit
-     *
+     * @inheritDoc
+     * @param bool $withRelations
+     * @return Collection
+     * @throws DataAccessException
+     */
+    public function getAll(bool $withRelations = false): Collection
+    {
+        try {
+            return $this->repository->getAll($withRelations, []);
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat fetch data laporan bibit.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat fetch data laporan bibit.', 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return Model
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
+     */
+    public function getById(string|int $id): Model
+    {
+        try {
+            $laporan = $this->repository->getById($id);
+
+            if ($laporan === null) {
+                throw new ResourceNotFoundException("Laporan Bibit dengan id {$id} tidak ditemukan.");
+            }
+            return $laporan;
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat fetch data laporan bibit dengan id {$id}.", 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException("Terjadi kesalahan tidak terduga saat fetch data laporan bibit dengan id {$id}.", 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @param array $data
+     * @return bool
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
+     */
+    public function update(string|int $id, array $data): bool
+    {
+        try {
+            $updated = $this->repository->update($id, $data);
+            if (!$updated) {
+                throw new ResourceNotFoundException("Laporan Bibit dengan id {$id} tidak ditemukan untuk diperbarui.");
+            }
+            return true;
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat memperbarui data laporan bibit.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tidak terduga saat memperbarui data laporan bibit.', 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return bool
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
+     */
+    public function delete(string|int $id): bool
+    {
+        try {
+            $laporan = $this->getById($id);
+
+            if ($laporan->laporanKondisiDetail && $laporan->laporanKondisiDetail->foto_bibit) {
+                try {
+                    Storage::disk('public')->delete($laporan->laporanKondisiDetail->foto_bibit);
+                } catch (Throwable $fileDeleteError) {
+                    $this->LogGeneralException($fileDeleteError, ['message' => 'Gagal menghapus file foto bibit terkait laporan', 'laporan_id' => $id]);
+                }
+            }
+
+            $deleted = $this->repository->delete($id);
+
+            if (!$deleted) {
+                throw new DataAccessException("Gagal menghapus data laporan bibit dengan id {$id}.");
+            }
+
+            return true;
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menghapus data laporan bibit.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tidak terduga saat menghapus data laporan bibit.', 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @note Tidak digunakan di service ini, pembuatan laporan berada pada laporan bibit api service
+     * @see LaporanBibitApiService pembuatan laporan bibit ada disini.
+     * @param array $data
+     * @return Model|null
+     */
+    public function create(array $data): ?Model
+    {
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     * @return int
+     * @throws DataAccessException
+     */
+    public function getTotal(): int
+    {
+        try {
+            return $this->repository->getTotal();
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menghitung total laporan bibit.');
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menghitung total laporan bibit.');
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @param int|string|null $penyuluhId
      * @return array
+     * @throws DataAccessException
      */
-    public function getAll(bool $withRelations = false): array
-    {
-        try {
-            $laporans = $this->crudRepository->getAll($withRelations);
-
-            if ($laporans->isNotEmpty()) {
-                return [
-                    'success' => true,
-                    'message' => 'Berhasil mengambil semua data laporan bibit',
-                    'data' => $laporans
-                ];
-
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil semua data laporan bibit',
-                'data' => [],
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Gagal mengambil seluruh data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil seluruh data laporan bibit',
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Mengambil data laporan bibit berdasarkan id
-     *
-     * @param string|int $id Id laporan bibit
-     * @return array
-     */
-    public function getById(string|int $id): array
-    {
-        try {
-            $laporan = $this->crudRepository->getById($id);
-            if (!empty($laporan)) {
-                return [
-                    'success' => true,
-                    'message' => 'Berhasil mengambil data laporan bibit',
-                    'data' => $laporan
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Laporan bibit tidak ditemukan',
-                'data' => [],
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Gagal mengambil data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data laporan bibit',
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Membuat laporan bibit
-     *
-     * @param array $data data laporan bibit
-     * @return array
-     */
-    public function create(array $data): array
-    {
-        try {
-            $laporan = $this->crudRepository->create([
-                'kelompok_tani_id' => $data['kelompok_tani_id'],
-                'komoditas_id' => $data['komoditas_id'],
-                'penyuluh_id' => $data['penyuluh_id'],
-                'status' => '2',
-            ]);
-
-            if (!empty($laporan)) {
-                return [
-                    'success' => true,
-                    'message' => 'Berhasil menyimpan data laporan bibit',
-                    'data' => $laporan
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menyimpan data laporan bibit',
-                'data' => [],
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Gagal menyimpan data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menyimpan data laporan bibit',
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Memperbarui data laporan bibit
-     *
-     * @param string|int $id Id laporan bibit
-     * @param array $data Data laporan bibit yang baru
-     * @return array
-     */
-    public function update(string|int $id, array $data): array
-    {
-        try {
-            $result = $this->crudRepository->update($id, $data);
-
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Berhasil memperbarui data laporan bibit',
-                    'data' => $data,
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Gagal memperbarui data laporan bibit',
-                'data' => [],
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Gagal memperbarui data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal memperbarui data laporan bibit',
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Menghapus data laporan bibit
-     *
-     * @param string|int $id Id laporan bibit
-     * @return array
-     */
-    public function delete(string|int $id): array
-    {
-        try {
-            $result = $this->crudRepository->delete($id);
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Berhasil menghapus data laporan bibit',
-                    'data' => ['id' => $id],
-                    'code' => 200,
-                ];
-            }
-            return [
-                'success' => false,
-                'message' => 'Gagal menghapus data laporan bibit',
-                'data' => [],
-                'code' => 500,
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Gagal menghapus data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal menghapus data laporan bibit',
-                'data' => [],
-                'code' => 500,
-            ];
-        }
-    }
-
-    /**
-     * Mengambil data laporan berdasarkan penyuluh_id
-     *
-     * @param string|int $id ID Penyuluh
-     * @return array Hasil
-     */
-    public function getByPenyuluhId(string|int $id): array
-    {
-        try {
-            $conditions = ['penyuluh_id' => $id];
-            $relations = ['penyuluh', 'penyuluh.penyuluhTerdaftar', 'komoditas', 'laporanKondisiDetail',];
-            $result = $this->repository->getByPenyuluhId($conditions, $relations);
-            if ($result->isNotEmpty()) {
-                return [
-                    'success' => true,
-                    'message' => 'Laporan bibit ditemukan',
-                    'data' => $result,
-                    'code' => 200,
-                ];
-            }
-            return [
-                'success' => false,
-                'message' => 'Laporan bibit tidak ditemukan',
-                'data' => [],
-                'code' => 404,
-            ];
-        } catch (\Throwable $th) {
-            Log::error('Terjadi kesalahan saat mengambil data laporan bibit.', [
-                'source' => __METHOD__,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Gagal mengambil data laporan bibit',
-                'data' => [],
-                'code' => 500,
-            ];
-        }
-    }
-
-    /**
-     * Mengambil total keseluruhan laporan bibit
-     *
-     * @return int total
-     * @throws Exception
-     */
-    public function calculateTotal(): int
-    {
-        try {
-            return $this->repository->calculateTotal();
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghitung total record data', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw new \Exception($e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Mengambil total seluruh laporan berdasarkan statusnya
-     *
-     * @return int[] data total tiap status
-     * @throws Exception
-     */
-    public function getLaporanStatusCounts(?int $penyuluhId = null): array
+    public function getLaporanStatusCounts(int|string|null $penyuluhId): array
     {
         try {
             return $this->repository->getLaporanStatusCounts($penyuluhId);
-        } catch (\Throwable $e) {
-            Log::error('Terjadi kesalahan saat menghitung total record data', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
-            throw new \Exception($e->getMessage(), 500);
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menghitung total laporan bibit berdasarkan status.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tidak terduga saat menghitung total laporan bibit berdasarkan status.', 0, $e);
         }
     }
 }

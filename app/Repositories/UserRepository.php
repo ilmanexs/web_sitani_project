@@ -2,21 +2,27 @@
 
 namespace App\Repositories;
 
+use App\Exceptions\DataAccessException;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Repositories\Interfaces\AuthInterface;
 use App\Trait\LoggingError;
-use Carbon\Carbon;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Log;
+use Random\RandomException;
 use Throwable;
 
 class UserRepository implements AuthInterface
 {
-
     use LoggingError;
 
-    public function findUser(array $conditions, bool $multiple = false, array $withRelations = []): ?User
+    /**
+     * @inheritDoc
+     * @param array $conditions
+     * @param array $withRelations
+     * @return User|null
+     * @throws Throwable
+     */
+    public function findUser(array $conditions, array $withRelations = []): ?User
     {
         try {
             $query = User::query();
@@ -37,13 +43,21 @@ class UserRepository implements AuthInterface
 
             return $query->first();
         } catch (QueryException $e) {
-            $this->LogSqlException($e);
-            return null;
+            $this->LogSqlException($e, $conditions);
+            throw $e;
         } catch (Throwable $e) {
-            return null;
+            $this->LogGeneralException($e, $conditions);
+            throw $e;
         }
     }
 
+    /**
+     * @inheritDoc
+     * @param User $user
+     * @param string $password
+     * @return bool
+     * @throws Throwable
+     */
     public function resetPassword(User $user, string $password): bool
     {
         try {
@@ -51,20 +65,24 @@ class UserRepository implements AuthInterface
             $user->is_password_set = true;
             $result = $user->save();
             if (!$result) {
-                Log::error('Password gagal disimpan', ['user_id' => $user->id]);
-                return false;
+                $this->LogGeneralException(new \Exception('password gagal disimpan'));
             }
-            return true;
+            return $result;
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['user_id' => $user->id]);
-            return false;
+            throw $e;
         } catch (Throwable $e) {
-            return false;
+            throw $e;
         }
     }
 
     /**
+     * @inheritDoc
+     * @param User $user
+     * @return string
+     * @throws DataAccessException
      * @throws Throwable
+     * @throws RandomException
      */
     public function generateAndSaveOtp(User $user): string
     {
@@ -78,17 +96,26 @@ class UserRepository implements AuthInterface
                 'expires_at' => now()->addMinutes((int) config('otp.expires_in_minutes')),
             ]);
 
-            throw_if(!$otp, new \Exception('Gagal menyimpan kode OTP'));
+            if (!$otp) {
+                throw new DataAccessException('Gagal generate OTP');
+            }
 
             return $code;
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['user_id' => $user->id]);
             throw $e;
-        } catch (Throwable $e) {
-            throw $e;
+        } catch (DataAccessException|Throwable $e) {
+          throw $e;
         }
     }
 
+    /**
+     * @inheritDoc
+     * @param User $user
+     * @param string $code
+     * @return bool
+     * @throws Throwable
+     */
     public function validateOtp(User $user, string $code): bool
     {
         try {
@@ -101,13 +128,16 @@ class UserRepository implements AuthInterface
             return $otp !== null;
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['user_id' => $user->id]);
-            return false;
+            throw $e;
         } catch (Throwable $e) {
-            return false;
+            throw $e;
         }
     }
 
     /**
+     * @inheritDoc
+     * @param User $user
+     * @return void
      * @throws Throwable
      */
     public function invalidateOtps(User $user): void
@@ -121,5 +151,4 @@ class UserRepository implements AuthInterface
             throw $e;
         }
     }
-
 }

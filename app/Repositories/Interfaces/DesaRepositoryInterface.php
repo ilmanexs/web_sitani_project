@@ -2,9 +2,10 @@
 
 namespace App\Repositories\Interfaces;
 
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
-interface DesaRepositoryInterface
+interface DesaRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Mengambil data desa berdasarkan Id kecamatan

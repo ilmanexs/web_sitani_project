@@ -2,78 +2,89 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaporanBibitRequest;
 use App\Http\Resources\LaporanKondisiResource;
-use App\Services\LaporanBibitService;
+use App\Services\Interfaces\LaporanBibitApiServiceInterface;
 use App\Trait\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class LaporanBibitController extends Controller
 {
     use ApiResponse;
 
-    protected LaporanBibitService $service;
+    protected LaporanBibitApiServiceInterface $service;
 
-    public function __construct(LaporanBibitService $service)
+    public function __construct(LaporanBibitApiServiceInterface $service)
     {
         $this->service = $service;
     }
 
-    /**
-     * Menyimpan laporan bibit yang dikirim oleh penyuluh
-     *
-     * @param LaporanBibitRequest $request Form request
-     * @return JsonResponse
-     */
     public function saveReport(LaporanBibitRequest $request): JsonResponse
     {
-        $result = $this->service->create($request->validated());
-
-        if ($result['success']) {
-            return $this->successResponse($result['data'], $result['message'], 201);
+        $validated = $request->validated();
+        if ($request->hasFile('foto_bibit') && request()->file('foto_lokasi')) {
+            $validated['foto_bibit'] = $request->file('foto_bibit');
+            $validated['foto_lokasi'] = $request->file('foto_lokasi');
         }
 
-        return $this->errorResponse($result['message'], 500, $request->validated());
+        try {
+            $laporan = $this->service->create($validated);
+            return $this->successResponse(new LaporanKondisiResource($laporan), 'Laporan berhasil disimpan', Response::HTTP_CREATED);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Laporan Gagal disimpan',Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.',Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    /**
-     * Mengambil laporan berdasarkan id penyuluh
-     *
-     * @param string|int $id Id penyuluh
-     * @return JsonResponse
-     */
-    public function getByPenyuluhId(string|int $id): JsonResponse
+    public function getByKecamatanId(string|int $id): JsonResponse
     {
-        $result = $this->service->getByPenyuluhId($id);
-        if ($result['success']) {
-            return $this->successResponse(LaporanKondisiResource::collection($result['data']), $result['message'], 200);
+        try {
+            $laporans = $this->service->getByKecamatanId($id);
+            return $this->successResponse(LaporanKondisiResource::collection($laporans), 'Laporan bibit ditemukan');
+        } catch (ResourceNotFoundException) {
+            return $this->errorResponse('Laporan Bibit tidak ditemukan', 404);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Gagal fetch data laporan bibit.', 500);
+        } catch (Throwable $e) {
+            Log::error($e);
+            return $this->errorResponse('Terjadi kesalahan di server.', 500);
         }
-
-        return $this->errorResponse($result['message'], $result['code'], ['penyuluh_id' => $id]);
     }
 
-    /**
-     * Mengambil total laporan bibit berdasarkan penyuluh id
-     *
-     * @return JsonResponse
-     */
-    public function getLaporanStatusCounts($id): JsonResponse
+    public function getLaporanStatusCounts(string|int $id): JsonResponse
     {
         try {
             $stats = $this->service->getLaporanStatusCounts($id);
 
             if (array_sum($stats) === 0) {
-                return $this->errorResponse('Laporan Tidak ditemukan', 404, ['penyuluh_id' => $id]);
+                return $this->errorResponse('Laporan Tidak ditemukan', Response::HTTP_NOT_FOUND, ['kecamatan_id' => $id]);
             }
-
             return $this->successResponse($stats, 'Total laporan bibit berhasil diambil');
-        } catch (\Throwable $e) {
-            return $this->errorResponse('Terjadi kesalahan diserver', 500,[
-                'approved' => 0,
-                'rejected' => 0,
-                'pending' => 0,
-            ]);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Gagal menghitung total laporan berdasarkan statusnya.', 500);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.', 500);
+        }
+    }
+
+    public function getTotalByKecamatanId(string|int $id): JsonResponse
+    {
+        try {
+            $total = $this->service->getTotalByKecamatanId($id);
+            return $this->successResponse(['total' => $total], 'Total laporan bibit berhasil diambil');
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_NOT_FOUND);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Gagal mengambil total laporan bibit', Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

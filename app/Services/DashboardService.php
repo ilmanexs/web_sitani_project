@@ -2,14 +2,24 @@
 
 namespace App\Services;
 
+use App\Services\Interfaces\BibitServiceInterface;
+use App\Services\Interfaces\KelompokTaniServiceInterface;
+use App\Services\Interfaces\KomoditasServiceInterface;
+use App\Services\Interfaces\LaporanBibitServiceInterface;
+use App\Services\Interfaces\PenyuluhServiceInterface;
+use App\Services\Interfaces\PenyuluhTerdaftarServiceInterface;
+use App\Trait\LoggingError;
+use mysql_xdevapi\Exception;
+
 class DashboardService
 {
-    protected BibitService $bibitService;
-    protected KomoditasService $komoditasService;
-    protected PenyuluhTerdaftarService $penyuluhTerdaftarService;
-    protected KelompokTaniService $kelompokTaniService;
-    protected LaporanBibitService $laporanBibitService;
-    protected PenyuluhService $penyuluhService;
+    use LoggingError;
+    protected BibitServiceInterface $bibitService;
+    protected KomoditasServiceInterface $komoditasService;
+    protected PenyuluhTerdaftarServiceInterface $penyuluhTerdaftarService;
+    protected KelompokTaniServiceInterface $kelompokTaniService;
+    protected LaporanBibitServiceInterface $laporanBibitService;
+    protected PenyuluhServiceInterface $penyuluhService;
 
     public function __construct(BibitService $bibitService, KomoditasService $komoditasService, PenyuluhTerdaftarService $penyuluhTerdaftarService, KelompokTaniService $kelompokTaniService, LaporanBibitService $laporanBibitService, PenyuluhService $penyuluhService)
     {
@@ -21,7 +31,7 @@ class DashboardService
         $this->penyuluhService = $penyuluhService;
     }
 
-    public function getStats()
+    public function getStats(): array
     {
         $totalBibit = $this->getTotalBibit();
         $totalKomoditas = $this->getTotalKomoditas();
@@ -51,14 +61,9 @@ class DashboardService
     protected function getTotalBibit(): int
     {
         try {
-            return $this->bibitService->calculateTotal();
+            return $this->bibitService->getTotal();
         } catch (\Throwable $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total bibit'));
             return 0;
         }
     }
@@ -71,14 +76,9 @@ class DashboardService
     protected function getTotalKomoditas(): int
     {
         try {
-            return $this->komoditasService->calculateTotal();
+            return $this->komoditasService->getTotal();
         } catch (\Exception $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total komoditas'));
             return 0;
         }
     }
@@ -91,14 +91,9 @@ class DashboardService
     protected function getTotalKelompokTani(): int
     {
         try {
-            return $this->kelompokTaniService->calculateTotal();
+            return $this->kelompokTaniService->getTotal();
         } catch (\Exception $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total kelompok tani'));
             return 0;
         }
     }
@@ -113,12 +108,7 @@ class DashboardService
         try {
             return $this->penyuluhTerdaftarService->calculateTotal();
         } catch (\Exception $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total penyuluh terdaftar'));
             return 0;
         }
     }
@@ -131,14 +121,9 @@ class DashboardService
     protected function getTotalLapBibit(): int
     {
         try {
-            return $this->laporanBibitService->calculateTotal();
+            return $this->laporanBibitService->getTotal();
         } catch (\Exception $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total laporan bibit'));
             return 0;
         }
     }
@@ -153,12 +138,7 @@ class DashboardService
         try {
             return $this->penyuluhService->calculateTotal();
         } catch (\Exception $e) {
-            \Log::error('Terjadi kesalahan saat menghitung total bibit', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'previous' => $e->getPrevious(),
-            ]);
+            $this->LogGeneralException(new Exception('Gagal mengambil total penyuluh'));
             return 0;
         }
     }

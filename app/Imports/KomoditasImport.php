@@ -37,7 +37,7 @@ class KomoditasImport implements ToModel, WithValidation, SkipsOnFailure, WithHe
     {
         return [
             'nama' => ['required', 'min:4', 'max:50', 'regex:/^[A-Za-z\s]+$/'],
-            'musim' => ['required', 'min:1', 'max:10'],
+            'musim' => ['required', 'numeric', 'min:1', 'max:10'],
             'deskripsi' => ['nullable', 'max:255'],
         ];
     }
@@ -47,10 +47,13 @@ class KomoditasImport implements ToModel, WithValidation, SkipsOnFailure, WithHe
         return [
             'nama.required' => 'Nama harus diisi.',
             'musim.required' => 'Musim harus diisi.',
+            'musim.numeric' => 'Musim harus berupa angka.',
+            'musim.max' => 'Musim tidak boleh lebih dari 10.',
+            'musim.min' => 'Musim minimal harus 1.',
         ];
     }
 
-    public function onFailure(Failure ...$failures)
+    public function onFailure(Failure ...$failures): void
     {
         foreach ($failures as $failure) {
             $this->failuresList[] = [

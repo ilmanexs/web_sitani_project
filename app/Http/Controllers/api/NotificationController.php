@@ -4,20 +4,19 @@ namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FcmRequest;
-use App\Services\NotificationService;
+use App\Services\Interfaces\NotificationServiceInterface;
 use App\Trait\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 
 class NotificationController extends Controller
 {
     use ApiResponse;
 
-    protected NotificationService $service;
+    protected NotificationServiceInterface $service;
 
-    public function __construct(NotificationService $service)
+    public function __construct(NotificationServiceInterface $service)
     {
         $this->service = $service;
     }

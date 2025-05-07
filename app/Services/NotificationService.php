@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\Interfaces\NotificationInterface;
+use App\Services\Interfaces\NotificationServiceInterface;
 use App\Trait\LoggingError;
 use Exception;
 use Illuminate\Support\Collection;
 
-class NotificationService
+class NotificationService implements NotificationServiceInterface
 {
     use LoggingError;
 
@@ -20,9 +21,8 @@ class NotificationService
     }
 
     /**
-     * Mengambil data notifikasi pengguna
-     *
-     * @param User $user model user
+     * @inheritDoc
+     * @param User $user
      * @return Collection|array
      * @throws Exception
      */
@@ -37,10 +37,9 @@ class NotificationService
     }
 
     /**
-     * Menandai notifikasi sudah dibaca
-     *
-     * @param User $user model user
-     * @param string|int $id notification id
+     * @inheritDoc
+     * @param User $user
+     * @param string|int $id
      * @return bool
      * @throws Exception
      */
@@ -55,10 +54,9 @@ class NotificationService
     }
 
     /**
-     * Menghapus notifikasi
-     *
-     * @param User $user model user
-     * @param string|int $id notification id
+     * @inheritDoc
+     * @param User $user
+     * @param string|int $id
      * @return bool
      * @throws Exception
      */

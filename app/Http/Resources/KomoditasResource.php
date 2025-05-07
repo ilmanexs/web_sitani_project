@@ -17,6 +17,7 @@ class KomoditasResource extends JsonResource
         return [
             'id' => $this->id,
             'nama' => $this->nama,
+            'bibit_berkualitas' => $this->whenLoaded('bibitBerkualitas', fn() => BibitBerkualitas::collection($this->bibitBerkualitas)),
         ];
     }
 }

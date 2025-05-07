@@ -128,6 +128,18 @@ class KelompokTaniImport implements ToCollection, WithValidation, SkipsOnFailure
         ];
     }
 
+    public function customValidationMessages()
+    {
+        return [
+            'nama_kelompok_tani.required' => 'Nama kelompok tani wajib diisi.',
+            'nama_kelompok_tani.min' => 'Nama kelompok tani minimal 3 karakter.',
+            'nama_kelompok_tani.max' => 'Nama kelompok tani maksimal 255 karakter.',
+            'nama_kelompok_tani.string' => 'Nama kelompok tani harus berupa string.',
+            'desa.required' => 'Nama Desa wajib diisi.',
+            'kecamatan.required' => 'Kecamatan wajib diisi.',
+        ];
+    }
+
     /**
      * Untuk mendapatkan kesalahan validasi
      *

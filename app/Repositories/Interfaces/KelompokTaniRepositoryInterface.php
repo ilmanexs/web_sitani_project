@@ -2,14 +2,15 @@
 
 namespace App\Repositories\Interfaces;
 
-use Illuminate\Database\Eloquent\Collection;
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
+use Illuminate\Support\Collection;
 
-interface KelompokTaniRepositoryInterface
+interface KelompokTaniRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Mengambil data kelompok tani berdasarkan penyuluh id
      *
-     * @param array $id Id kelompok tani
+     * @param array $id Id penyuluh
      * @return Collection|array
      */
     public function getByPenyuluhId(array $id): Collection|array;
@@ -28,4 +29,13 @@ interface KelompokTaniRepositoryInterface
      * @return int
      */
     public function countByKecamatanId(string|int $id): int;
+
+    /**
+     * Mengambil seluruh data kelompok tani berdasarkan kecamatan id
+     *
+     * @param string|int $kecamatanId Kecamatan id
+     * @param array $criteria Set dengan nilai dari query parameter untuk menerapkan pencarian data berdasarkan query parameter yang diambil
+     * @return Collection
+     */
+    public function getAllByKecamatanId(string|int $kecamatanId, array $criteria = []): Collection;
 }

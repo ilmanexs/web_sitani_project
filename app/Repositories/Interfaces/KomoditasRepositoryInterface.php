@@ -2,9 +2,10 @@
 
 namespace App\Repositories\Interfaces;
 
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
 use Illuminate\Support\Collection;
 
-interface KomoditasRepositoryInterface
+interface KomoditasRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Menghitung total Komoditas yang terdaftar di aplikasi

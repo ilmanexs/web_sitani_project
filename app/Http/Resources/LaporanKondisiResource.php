@@ -15,13 +15,22 @@ class LaporanKondisiResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'status' => $this->status,
-            'kelompok_tani_id' => $this->kelompok_tani_id,
-            'komoditas_id' => new KomoditasResource($this->whenLoaded('komoditas')),
-            'created_at' => $this->created_at,
-            'penyuluh' => new PenyuluhResource($this->whenLoaded('penyuluh')),
-            'laporan_kondisi_detail' => new LaporanKondisiDetailResource($this->whenLoaded('laporanKondisiDetail')),
+            'kelompok_tani_id' => $this->id,
+            'nama_kelompok_tani' => $this->nama,
+            'desa' => new DesaResource($this->whenLoaded('desa')),
+            'laporan' => $this->laporanKondisi->map(function ($laporan) {
+                return [
+                    'id' => $laporan->id,
+                    'status' => $laporan->status,
+                    'created_at' => $laporan->created_at,
+                    'komoditas' => new KomoditasResource($laporan->komoditas),
+                    'pelapor' => [
+                        'id' => $laporan->penyuluh->penyuluhTerdaftar->id,
+                        'nama' => $laporan->penyuluh->penyuluhTerdaftar->nama,
+                    ],
+                    'detail' => new LaporanKondisiDetailResource($laporan->laporanKondisiDetail),
+                ];
+            })
         ];
     }
 }

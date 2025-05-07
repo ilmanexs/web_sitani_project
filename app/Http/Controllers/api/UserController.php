@@ -2,20 +2,21 @@
 
 namespace App\Http\Controllers\api;
 
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
-use App\Services\UserService;
+use App\Services\Interfaces\UserServiceInterface;
 use App\Trait\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
     use ApiResponse;
 
-    protected UserService $service;
+    protected UserServiceInterface $service;
 
-    public function __construct(UserService $service)
+    public function __construct(UserServiceInterface $service)
     {
         $this->service = $service;
     }
@@ -26,25 +27,29 @@ class UserController extends Controller
      * @param string|int $id Id pengguna
      * @return JsonResponse
      */
-    public function getProfile(string|int $id)
+    public function getProfile(string|int $id): JsonResponse
     {
-        $result = $this->service->findUser(['id' => $id], [
-            'penyuluh' => [
-                'id', 'user_id', 'penyuluh_terdaftar_id'
-            ],
-            'penyuluh.penyuluhTerdaftar' => [
-                'id', 'nama', 'no_hp', 'alamat', 'kecamatan_id',
-            ],
-            'penyuluh.penyuluhTerdaftar.kecamatan' => [
-                'id', 'nama',
-            ]
-        ]);
+        try {
+            $user = $this->service->findUser(['id' => $id], [
+                'penyuluh' => [
+                    'id', 'user_id', 'penyuluh_terdaftar_id'
+                ],
+                'penyuluh.penyuluhTerdaftar' => [
+                    'id', 'nama', 'no_hp', 'alamat', 'kecamatan_id',
+                ],
+                'penyuluh.penyuluhTerdaftar.kecamatan' => [
+                    'id', 'nama',
+                ]
+            ]);
 
-        if ($result['success']) {
-            return $this->successResponse(new UserResource($result['data']), $result['message']);
+            if ($user && !$user->hasRole('penyuluh')) {
+                return $this->errorResponse('Akun anda tidak terdaftar sebagai penyuluh', JsonResponse::HTTP_UNAUTHORIZED);
+            }
+            return $this->successResponse(new UserResource($user));
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse('User tidak ditemukan', 404);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Terjadi kesalahan di di server');
         }
-
-        return $this->errorResponse($result['message'], $result['code'], ['user_id' => $id]);
     }
-
 }

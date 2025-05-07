@@ -2,18 +2,27 @@
 
 namespace App\Repositories;
 
+use App\Exceptions\DataAccessException;
 use App\Models\Kecamatan;
-use App\Repositories\Interfaces\CrudInterface;
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
 use App\Trait\LoggingError;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Throwable;
 
-class KecamatanRepository implements CrudInterface
+class KecamatanRepository implements BaseRepositoryInterface
 {
     use LoggingError;
 
-    public function getAll(bool $withRelations = false): Collection|array
+    /**
+     * @inheritDoc
+     * @param bool $withRelations
+     * @param array $criteria
+     * @return Collection|array
+     * @throws DataAccessException
+     */
+    public function getAll(bool $withRelations = false, array $criteria = []): Collection|array
     {
         try {
             $query = Kecamatan::select(['id', 'nama']);
@@ -23,57 +32,87 @@ class KecamatanRepository implements CrudInterface
             return $query->get();
         } catch (QueryException $e) {
             $this->LogSqlException($e);
-            return Collection::make();
-        } catch (\Throwable $e) {
-            return Collection::make();
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' .  __METHOD__, 0, $e);
         }
     }
 
-    public function getById(string|int $id): Model|Collection|array|null
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return Model|null
+     * @throws DataAccessException
+     */
+    public function getById(string|int $id): ?Model
     {
         try {
             return Kecamatan::where('id', $id)->first();
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id]);
-            return null;
-        } catch (\Throwable $e) {
-            return null;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' .  __METHOD__, 0, $e);
         }
     }
 
+    /**
+     * @inheritDoc
+     * @param array $data
+     * @return Model|null
+     * @throws DataAccessException
+     */
     public function create(array $data): ?Model
     {
         try {
             return Kecamatan::create($data);
         } catch (QueryException $e) {
             $this->LogSqlException($e, $data);
-            return null;
-        } catch (\Throwable $e) {
-            return null;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['data' => $data]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' .  __METHOD__, 0, $e);
         }
     }
 
-    public function update(string|int $id, array $data): Model|bool|int
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @param array $data
+     * @return Model|bool|int
+     * @throws DataAccessException
+     */
+    public function update(string|int $id, array $data): bool|int
     {
         try {
             return Kecamatan::where('id', $id)->update($data);
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id, 'data_baru' => $data]);
-            return false;
-        } catch (\Throwable $e) {
-            return false;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id, 'data_baru' => $data]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' .  __METHOD__, 0, $e);
         }
     }
 
-    public function delete(string|int $id): Model|bool|int
+    /**
+     * @inheritDoc
+     * @param string|int $id
+     * @return bool|int
+     * @throws DataAccessException
+     */
+    public function delete(string|int $id): bool|int
     {
         try {
             return Kecamatan::destroy($id);
         } catch (QueryException $e) {
             $this->LogSqlException($e, ['id' => $id]);
-            return false;
-        } catch (\Throwable $e) {
-            return false;
+            throw $e;
+        } catch (Throwable $e) {
+            $this->LogGeneralException($e, ['id' => $id]);
+            throw new DataAccessException('Terjadi kesalahan tak terduga di ' .  __METHOD__, 0, $e);
         }
     }
 }

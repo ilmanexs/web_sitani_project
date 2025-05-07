@@ -21,6 +21,7 @@ class LaporanKondisiDetailResource extends JsonResource
             'jenis_bibit' => $this->jenis_bibit,
             'foto_bibit' => $this->foto_bibit,
             'lokasi_lahan' => $this->lokasi_lahan,
+            'path_foto_lokasi' => $this->path_foto_lokasi,
         ];
     }
 }

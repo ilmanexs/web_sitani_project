@@ -6,13 +6,16 @@ use App\Models\Admin;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AdminExport implements FromCollection, WithHeadings
+class AdminExport implements FromCollection, WithHeadings, WithStyles
 {
     /**
     * @return Collection
     */
-    public function collection()
+    public function collection(): Collection
     {
         return Admin::with('user.roles')
             ->get()
@@ -30,5 +33,13 @@ class AdminExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return ['Nama Lengkap', 'No Hp', 'Email', 'Role', 'Alamat Lengkap'];
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        foreach (range('A', 'E') as $col) {
+            $sheet->getStyle($col)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+        return [];
     }
 }

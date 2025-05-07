@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Exceptions\DataAccessException;
+use App\Exceptions\InvalidOtpException;
+use App\Exceptions\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EmailRequest;
 use App\Http\Requests\LoginRequest;
@@ -10,96 +13,102 @@ use App\Http\Requests\PasswordRequest;
 use App\Http\Requests\PenyuluhRequest;
 use App\Http\Requests\PhonePenyuluhRequest;
 use App\Http\Resources\UserLoginResource;
-use App\Services\PenyuluhService;
-use App\Services\PenyuluhTerdaftarService;
-use App\Services\UserService;
+use App\Services\Api\PenyuluhTerdaftarApiService;
+use App\Services\Interfaces\PenyuluhServiceInterface;
+use App\Services\Interfaces\UserServiceInterface;
 use App\Trait\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Facades\JWTFactory;
 
 class AuthApiController extends Controller
 {
     use ApiResponse;
-    protected PenyuluhService $service;
-    protected PenyuluhTerdaftarService $penyuluhTerdaftarService;
-    protected UserService $userService;
 
-    public function __construct(PenyuluhService $service, PenyuluhTerdaftarService $penyuluhTerdaftarService, UserService $userService)
+    protected PenyuluhServiceInterface $penyuluhService;
+    protected PenyuluhTerdaftarApiService $penyuluhTerdaftarService;
+    protected UserServiceInterface $userService;
+
+    public function __construct(
+        PenyuluhServiceInterface    $penyuluhService,
+        PenyuluhTerdaftarApiService $penyuluhTerdaftarService,
+        UserServiceInterface        $userService
+    )
     {
-        $this->service = $service;
+        $this->penyuluhService = $penyuluhService;
         $this->penyuluhTerdaftarService = $penyuluhTerdaftarService;
         $this->userService = $userService;
     }
 
-    /**
-     * Login Penyuluh
-     *
-     * @param LoginRequest $request Form request
-     * @return JsonResponse response
-     */
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
 
-        if (!$token = JWTAuth::attempt($credentials)) {
-            return $this->errorResponse('Email atau password salah', 401);
+        try {
+            if (!$token = JWTAuth::attempt($credentials)) {
+                return $this->errorResponse('Email atau password salah', Response::HTTP_UNAUTHORIZED);
+            }
+
+            $user = Auth::user();
+
+            if (!$user || !$user->hasRole('penyuluh')) {
+                JWTAuth::invalidate($token);
+                return $this->errorResponse('Akun ini tidak memiliki izin untuk login sebagai penyuluh.', Response::HTTP_FORBIDDEN);
+            }
+
+            return $this->respondWithToken($token, "Login Berhasil");
+
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server. Silakan coba lagi.', 500);
         }
-
-        $user = Auth::user();
-
-        if (!$user->hasRole('penyuluh')) {
-            return $this->errorResponse('Akun ini tidak memiliki izin untuk login sebagai penyuluh.', 403, [
-                'email' => $credentials['email'],
-            ]);
-        }
-
-        return $this->respondWithToken($token, "Login Berhasil");
     }
 
-    /**
-     * Verifikasi no hp penyuluh saat registrasi
-     *
-     * @param PhonePenyuluhRequest $request Form request
-     * @return JsonResponse response
-     */
     public function validatePhone(PhonePenyuluhRequest $request): JsonResponse
     {
-        $result = $this->penyuluhTerdaftarService->getByPhone($request->validated('no_hp'));
-        if ($result['success']) {
-            return $this->successResponse($result['data'], $result['message']);
-        }
+        $phone = $request->validated('no_hp');
 
-        return $this->errorResponse($result['message'], $result['data']);
+        try {
+            $penyuluhTerdaftar = $this->penyuluhTerdaftarService->getByPhone($phone);
+
+            $exists = $this->penyuluhService->existsByPenyuluhTerdaftarId($penyuluhTerdaftar->id);
+            if ($exists) {
+                return $this->errorResponse('Nomor telah terdaftar, silahkan login,',  Response::HTTP_CONFLICT);
+            }
+
+            return $this->successResponse($penyuluhTerdaftar, 'Nomor HP terdaftar sebagai penyuluh.');
+
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_NOT_FOUND);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.', $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.');
+        }
     }
 
-    /**
-     * Registrasi akun penyuluh
-     *
-     * @param PenyuluhRequest $request Form request
-     * @return JsonResponse response
-     */
     public function register(PenyuluhRequest $request): JsonResponse
     {
-        $result = $this->service->create($request->validated());
+        $data = $request->validated();
 
-        if ($result['success']) {
-            return $this->successResponse($result['data'], $result['message'], 201);
+        try {
+            $penyuluh = $this->penyuluhService->create($data);
+            return $this->successResponse([
+                'id' => $penyuluh->user_id,
+                'email' => $penyuluh->user->email,
+                'created_at' => $penyuluh->created_at,
+            ], 'Registrasi berhasil', Response::HTTP_CREATED);
+
+        } catch (DataAccessException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.');
         }
-
-        return $this->errorResponse($result['message']);
     }
 
-    /**
-     * Mengembalikan response beserta token
-     *
-     * @param  string $token token JWT
-     * @param string $message Pesan response
-     *
-     * @return JsonResponse
-     */
-    protected function respondWithToken(string $token, string $message) : JsonResponse
+    protected function respondWithToken(string $token, string $message): JsonResponse
     {
         $user = Auth::user()->load([
             'penyuluh:id,user_id,penyuluh_terdaftar_id',
@@ -115,114 +124,104 @@ class AuthApiController extends Controller
         ], $message);
     }
 
-    /**
-     * Mengirim kode OTP untuk reset password
-     *
-     * @param EmailRequest $request Form request
-     * @return JsonResponse response
-     */
     public function sendOtp(EmailRequest $request): JsonResponse
     {
-        $validated = $request->validated();
+        $email = $request->validated('email');
 
-        $data = $this->userService->findUser(['email' => $validated['email']]);
-        $user = null;
-        if ($data['success']) {
-            $user = $data['data'];
+        try {
+            $user = $this->userService->findUser(['email' => $email]);
+
+            if (!$user->hasRole('penyuluh')) {
+                return $this->errorResponse("Anda tidak memiliki akses, Gunakan akun penyuluh untuk masuk", 403);
+            }
+
+            $this->userService->sendOtpToEmail($user);
+
+            return $this->successResponse([
+                'id' => $user->id,
+                'email' => $email,
+            ], 'Kode OTP berhasil dikirim.');
+
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse("Pengguna tidak ditemukan", Response::HTTP_NOT_FOUND);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan tak terduga saat mengirim OTP.');
         }
-
-        if (!$user || !$user->hasRole('penyuluh')) {
-            return $this->errorResponse("Anda tidak memiliki akses, Gunakan akun penyuluh untuk masuk", 403);
-        }
-
-        $result = $this->userService->sendOtpToEmail($user);
-
-        if (!$result['success']) {
-            return $this->errorResponse('Gagal mengirim OTP', 401);
-        }
-
-        return $this->successResponse([
-            'id' => $user->id,
-            'email' => $validated['email'],
-        ], $result['message']);
     }
 
-    /**
-     * Validasi kode OTP
-     *
-     * @param OtpCodeRequest $request Form request
-     * @return JsonResponse
-     */
     public function validateOtp(OtpCodeRequest $request): JsonResponse
     {
         $validated = $request->validated();
         $email = $request->input('email');
-        $data = $this->userService->findUser(['email' => $email]);
 
-        if (!$data['success']) {
-            return $this->errorResponse($data['message'], $data['code']);
+        try {
+            $user = $this->userService->findUser(['email' => $email]);
+
+            $this->userService->verifyOtp($user, $validated);
+
+            return $this->successResponse(['email' => $email], 'Kode OTP valid.', Response::HTTP_ACCEPTED);
+
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse('Pengguna tidak ditemukan.', $e->getCode() ?: Response::HTTP_NOT_FOUND);
+        } catch (InvalidOtpException $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_UNAUTHORIZED);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.');
         }
-
-        $user = $data['data'];
-        $result = $this->userService->verifyOtp($user, $validated);
-
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], 401);
-        }
-
-        return $this->successResponse(['email' => $email], $result['message']);
     }
 
-    /**
-     * Memperbarui kata sandi(OTP)
-     *
-     * @param PasswordRequest $request Form request
-     * @return JsonResponse
-     */
     public function passwordReset(PasswordRequest $request): JsonResponse
     {
         $validated = $request->validated();
         $email = $request->input('email');
         $newPassword = $validated['password'];
 
+        try {
+            $this->userService->processPasswordResetFlow(
+                $email,
+                $newPassword,
+                true
+            );
 
-        $result = $this->userService->processPasswordResetFlow(
-            $email,
-            $newPassword,
-            true
-        );
+            return $this->successResponse(['email' => $email], 'Password berhasil direset.');
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code']);
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse('Pengguna tidak ditemukan.', $e->getCode() ?: Response::HTTP_NOT_FOUND);
+        } catch (InvalidOtpException $e) {
+            return $this->errorResponse($e->getMessage(), 401);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan tak terduga saat reset password.');
         }
-
-        return $this->successResponse(['email' => $email], $result['message']);
     }
 
-    /**
-     * Memperbarui kata sandi melalui profile
-     *
-     * @param PasswordRequest $request
-     * @return JsonResponse
-     */
     public function updatePasswordViaProfile(PasswordRequest $request): JsonResponse
     {
         $validated = $request->validated();
         $email = $request->input('email');
-        $newPassword = $validated['password'];
+        try {
+            $this->userService->findUser(['email' => $email]);
 
+            $newPassword = $validated['password'];
+            $this->userService->processPasswordResetFlow(
+                $email,
+                $newPassword,
+                false
+            );
 
-        $result = $this->userService->processPasswordResetFlow(
-            $email,
-            $newPassword,
-            false
-        );
+            return $this->successResponse(['email' => $email], 'Password berhasil diperbarui.');
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code']);
+        } catch (ResourceNotFoundException $e) {
+            return $this->errorResponse('Pengguna tidak ditemukan.', $e->getCode() ?: Response::HTTP_NOT_FOUND);
+        } catch (DataAccessException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server .');
         }
-
-        return $this->successResponse(['email' => $email], $result['message']);
     }
-
 }

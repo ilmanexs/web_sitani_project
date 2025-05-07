@@ -16,6 +16,8 @@ class NotificationRepository implements NotificationInterface
 
     /**
      * @inheritDoc
+     * @param User $user
+     * @return Collection|array
      * @throws Exception
      */
     public function getUserNotification(User $user): Collection|array
@@ -44,6 +46,9 @@ class NotificationRepository implements NotificationInterface
 
     /**
      * @inheritDoc
+     * @param User $user
+     * @param int|string $id
+     * @return bool
      * @throws Exception
      */
     public function markNotificationAsRead(User $user, int|string $id): bool
@@ -67,6 +72,9 @@ class NotificationRepository implements NotificationInterface
 
     /**
      * @inheritDoc
+     * @param User $user
+     * @param int|string $id
+     * @return bool
      * @throws Exception
      */
     public function deleteNotification(User $user, int|string $id): bool

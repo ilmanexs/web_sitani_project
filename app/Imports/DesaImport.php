@@ -52,7 +52,7 @@ class DesaImport implements ToModel, WithValidation, SkipsOnFailure, WithHeading
     {
         return [
             'nama_desa' => ['required', 'min:3', 'max:50', 'regex:/^[A-Za-z\s]+$/'],
-            'nama_kecamatan' => ['required'],
+            'nama_kecamatan' => ['required', 'exists:kecamatans,nama'],
         ];
     }
 
@@ -69,6 +69,7 @@ class DesaImport implements ToModel, WithValidation, SkipsOnFailure, WithHeading
             'nama_desa.max' => 'Nama Desa maksimal 50 karakter.',
             'nama_desa.regex' => 'Nama desa hanya boleh huruf dan angka',
             'nama_kecamatan.required' => 'Nama Kecamatan harus diisi.',
+            'nama_kecamatan.exists' => 'Nama Kecamatan Tidak ditemukan atau terdaftar.',
         ];
     }
 }

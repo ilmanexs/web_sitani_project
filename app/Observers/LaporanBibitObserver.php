@@ -15,26 +15,7 @@ class LaporanBibitObserver
      */
     public function created(LaporanKondisi $laporanKondisi): void
     {
-        try {
-            if (request()->hasFile('foto_bibit')) {
-                $data = request()->all();
-                $file = $data['foto_bibit'];
-                $now = date('Y-m-d');
-                $waktuPanen = Carbon::parse($data['estimasi_panen'])->format('Y-m-d');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('foto_bibit/' . $data['kelompok_tani_id'] . '/' . $now, $filename, 'public');
-                LaporanKondisiDetail::create([
-                    'laporan_kondisi_id' => $laporanKondisi->id,
-                            'luas_lahan' => $data['luas_lahan'],
-                            'estimasi_panen' => $waktuPanen,
-                            'jenis_bibit' => $data['jenis_bibit'],
-                            'foto_bibit' => $path,
-                            'lokasi_lahan' => $data['lokasi_lahan'],
-                ]);
-            }
-        } catch (\Throwable $th) {
-            Log::error('Foto bibit tidak dikirimkan: ' . $th->getMessage());
-        }
+
     }
 
     /**
@@ -50,18 +31,6 @@ class LaporanBibitObserver
      */
     public function deleted(LaporanKondisi $laporanKondisi): void
     {
-        $laporanDetail = LaporanKondisiDetail::where('laporan_kondisi_id', $laporanKondisi->id)->select(['id', 'foto_bibit'])->first();
-
-        if ($laporanDetail) {
-            if ($laporanDetail->foto_bibit) {
-                try {
-                    Storage::disk('public')->delete($laporanDetail->foto_bibit);
-                } catch (\Throwable $th) {
-                    Log::error('Gagal menghapus foto bibit: ' . $th->getMessage());
-                }
-            }
-            $laporanDetail->delete();
-        }
 
     }
 

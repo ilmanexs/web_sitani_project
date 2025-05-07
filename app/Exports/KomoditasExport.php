@@ -3,15 +3,16 @@
 namespace App\Exports;
 
 use App\Models\Komoditas;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class KomoditasExport implements FromCollection, WithHeadings
 {
     /**
-    * @return \Illuminate\Support\Collection
+    * @return Collection
     */
-    public function collection()
+    public function collection(): Collection
     {
         return Komoditas::select(['nama', 'musim', 'deskripsi'])->get();
     }

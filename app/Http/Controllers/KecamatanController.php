@@ -2,106 +2,97 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\KecamatanExport;
 use App\Exports\template\KecamatanTemplate;
 use App\Http\Requests\FileExcelRequest;
 use App\Http\Requests\KecamatanRequest;
-use App\Imports\KecamatanImport;
-use App\Imports\KomoditasImport;
-use App\Services\KecamatanService;
+use App\Services\Interfaces\KecamatanServiceInterface;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ResourceNotFoundException;
+use App\Exceptions\ImportFailedException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
 class KecamatanController extends Controller
 {
-    protected KecamatanService $kecamatanService;
+    protected KecamatanServiceInterface $kecamatanService;
 
-    public function __construct(KecamatanService $kecamatanService)
+    public function __construct(KecamatanServiceInterface $kecamatanService)
     {
         $this->kecamatanService = $kecamatanService;
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index(): View
     {
-        $data = $this->kecamatanService->getAll();
-        $kecamatans = [];
-
-        if ($data['success']) {
-            $kecamatans = $data['data'];
+        try {
+            $kecamatans = $this->kecamatanService->getAll(true);
+        } catch (DataAccessException $e) {
+            $kecamatans = collect();
+            session()->flash('error', 'Gagal memuat data kecamatan.');
         }
 
         return view('pages.kecamatan.index', compact('kecamatans'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create(): View
     {
         return view('pages.kecamatan.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(KecamatanRequest $request): RedirectResponse
     {
-        $result = $this->kecamatanService->create($request->validated());
-        if ($result['success']) {
+        try {
+            $this->kecamatanService->create($request->validated());
             return redirect()->route('kecamatan.index')->with('success', 'Data Berhasil disimpan');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->withInput()->with('error', 'Data Gagal disimpan. Silakan coba lagi.');
         }
-
-        return redirect()->route('kecamatan.create')->with('error', 'Data Gagal disimpan');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id): View
     {
-        $data = $this->kecamatanService->getById($id);
-        $kecamatan = [];
-
-        if ($data['success']) {
-            $kecamatan = $data['data'];
+        try {
+            $kecamatan = $this->kecamatanService->getById($id);
+        } catch (ResourceNotFoundException $e) {
+            abort(404, $e->getMessage());
+        } catch (DataAccessException $e) {
+            abort(500, 'Terjadi kesalahan saat memuat data kecamatan untuk edit. Silakan coba lagi.');
         }
+
         return view('pages.kecamatan.update', compact('kecamatan'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(KecamatanRequest $request, string $id): RedirectResponse
     {
-        $result = $this->kecamatanService->update($id, $request->validated());
-
-        if ($result['success']) {
+        try {
+            $this->kecamatanService->update($id, $request->validated());
             return redirect()->route('kecamatan.index')->with('success', 'Data berhasil diperbarui');
+        } catch (ResourceNotFoundException $e) {
+            abort(404, $e->getMessage());
+        } catch (DataAccessException $e) {
+            return redirect()->route('kecamatan.index')->with('error', 'Data gagal diperbarui. Silakan coba lagi.');
         }
-
-        return redirect()->route('kecamatan.index')->with('error', 'Data gagal diperbarui');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id): RedirectResponse
     {
-        $result = $this->kecamatanService->delete($id);
-        if ($result['success']) {
+        try {
+            $this->kecamatanService->delete($id);
             return redirect()->route('kecamatan.index')->with('success', 'Data berhasil dihapus');
+        } catch (ResourceNotFoundException $e) {
+            abort(404, $e->getMessage());
+        } catch (DataAccessException $e) {
+            return redirect()->route('kecamatan.index')->with('error', 'Data gagal dihapus. Silakan coba lagi.');
         }
-        return redirect()->route('kecamatan.index')->with('error', 'Data gagal dihapus');
     }
 
     public function downloadTemplate()
     {
-        return Excel::download(new KecamatanTemplate(), 'kecamatan.xlsx');
+        try {
+            return Excel::download(new KecamatanTemplate(), 'kecamatan_template.xlsx');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh template.');
+        }
     }
 
     public function import(FileExcelRequest $request): RedirectResponse
@@ -109,26 +100,38 @@ class KecamatanController extends Controller
         $data = $request->validated();
 
         try {
-            $import = new KecamatanImport();
-            Excel::import($import, $data['file']);
-
-            $failures = $import->getFailures();
+            $failures = $this->kecamatanService->import($data['file']);
 
             if (!empty($failures)) {
                 return redirect()->route('kecamatan.index')->with([
-                    'success' => 'Data berhasil diimport, namun ada beberapa data yang gagal.',
+                    'error' => 'Data berhasil diimport, namun ada beberapa data yang gagal diproses.',
                     'failures' => $failures
                 ]);
             }
 
             return redirect()->route('kecamatan.index')->with('success', 'Data berhasil diimport');
-        } catch (\Exception $e) {
-            return redirect()->route('kecamatan.index')->with('error', $e->getMessage());
+
+        } catch (ImportFailedException $e) {
+            return redirect()->route('kecamatan.index')->with([
+                'error' => $e->getMessage(),
+                'failures' => $e->getFailures()
+            ]);
+        } catch (DataAccessException $e) {
+            return redirect()->route('kecamatan.index')->with('error', 'Terjadi kesalahan database saat mengimport data.');
+        } catch (\Throwable $e) {
+            return redirect()->route('kecamatan.index')->with('error', 'Terjadi kesalahan tak terduga saat mengimport data.');
         }
     }
 
     public function export()
     {
-        return Excel::download(new KecamatanExport(), 'kecamatan.xlsx');
+        try {
+            $exporter = $this->kecamatanService->export();
+            return Excel::download($exporter, 'kecamatan.xlsx');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->with('error', 'Gagal menyiapkan data untuk export.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh data export.');
+        }
     }
 }

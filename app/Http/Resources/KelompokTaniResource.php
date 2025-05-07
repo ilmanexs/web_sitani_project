@@ -17,14 +17,8 @@ class KelompokTaniResource extends JsonResource
         return [
             'id' => $this->id,
             'nama' => $this->nama,
-            'desa' => [
-                'id' => $this->desa->id ?? null,
-                'nama' => $this->desa->nama ?? null,
-            ],
-            'kecamatan' => [
-                'id' => $this->kecamatan->id ?? null,
-                'nama' => $this->kecamatan->nama ?? null,
-            ],
+            'desa' => new DesaResource($this->whenLoaded('desa')),
+            'kecamatan' => new KecamatanResource($this->whenLoaded('kecamatan')),
             'penyuluhs' => $this->penyuluhTerdaftars->map(function ($penyuluh) {
                 return [
                     'id' => $penyuluh->id,

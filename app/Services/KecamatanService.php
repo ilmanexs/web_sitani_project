@@ -2,215 +2,185 @@
 
 namespace App\Services;
 
-use App\Repositories\Interfaces\CrudInterface;
-use Illuminate\Support\Facades\Log;
+use App\Exceptions\DataAccessException;
+use App\Exceptions\ImportFailedException;
+use App\Exceptions\ResourceNotFoundException;
+use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
+use App\Services\Interfaces\KecamatanServiceInterface;
+use App\Trait\LoggingError;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\KecamatanImport;
+use App\Exports\KecamatanExport;
+use Throwable;
 
-class KecamatanService
+class KecamatanService implements KecamatanServiceInterface
 {
-    protected CrudInterface $kecamatanRepository;
+    use LoggingError;
 
-    public function __construct(CrudInterface $kecamatanRepository)
+    protected BaseRepositoryInterface $repository;
+
+    public function __construct(BaseRepositoryInterface $repository)
     {
-        $this->kecamatanRepository = $kecamatanRepository;
+        $this->repository = $repository;
     }
 
     /**
-     * Mengambil seluruh data kecamatan
-     *
-     * @return array
+     * @inheritDoc
+     * @param bool $withRelations
+     * @return Collection
+     * @throws DataAccessException
      */
-    public function getAll(): array
+    public function getAll(bool $withRelations = false): Collection
     {
         try {
-            $kecamatans = $this->kecamatanRepository->getAll();
-
-            if ($kecamatans->isNotEmpty()) {
-                return [
-                    'success' => true,
-                    'message' => 'Data kecamatan berhasil diambil.',
-                    'data' => $kecamatans,
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Tidak ada data kecamatan yang ditemukan.',
-                'data' => [],
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal mengambil seluruh data kecamatan.', [
-                'source' => __METHOD__,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mengambil data kecamatan.',
-                'data' => [],
-            ];
+            return $this->repository->getAll($withRelations, []);
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat fetch data kecamatan.', 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat fetch kecamatan.', 0, $e);
         }
     }
 
     /**
-     * Mengambil data kecamatan berdasarkan ID
-     *
+     * @inheritDoc
      * @param string|int $id
-     * @return array
+     * @return Model
+     * @throws DataAccessException
+     * @throws ResourceNotFoundException
      */
-    public function getById(string|int $id): array
+    public function getById(string|int $id): Model
     {
         try {
-            $kecamatan = $this->kecamatanRepository->getById($id);
+            $kecamatan = $this->repository->getById($id);
 
-            if (!empty($kecamatan)) {
-                return [
-                    'success' => true,
-                    'message' => 'Data kecamatan berhasil ditemukan.',
-                    'data' => $kecamatan,
-                ];
+            if ($kecamatan === null) {
+                throw new ResourceNotFoundException("Kecamatan dengan id {$id} tidak ditemukan.");
             }
-
-            return [
-                'success' => false,
-                'message' => 'Data kecamatan tidak ditemukan.',
-                'data' => [],
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal mengambil data kecamatan berdasarkan ID.', [
-                'source' => __METHOD__,
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mengambil data kecamatan.',
-                'data' => [],
-            ];
+            return $kecamatan;
+        } catch (ResourceNotFoundException $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat fetch kecamatan dengan id {$id}.", 0, $e);
+        } catch (Throwable $e) {
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat fetch kecamatan dengan id {$id}.", 0, $e);
         }
     }
 
     /**
-     * Menyimpan data kecamatan baru
-     *
+     * @inheritDoc
      * @param array $data
-     * @return array
+     * @return Model
+     * @throws DataAccessException
      */
-    public function create(array $data): array
+    public function create(array $data): Model
     {
         try {
-            $kecamatan = $this->kecamatanRepository->create($data);
+            $kecamatan = $this->repository->create($data);
 
-            if (!empty($kecamatan)) {
-                return [
-                    'success' => true,
-                    'message' => 'Data kecamatan berhasil disimpan.',
-                    'data' => $kecamatan,
-                ];
+            if ($kecamatan === null) {
+                throw new DataAccessException('Gagal menyimpan data kecamatan di repository.');
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data kecamatan gagal disimpan.',
-                'data' => [],
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal menyimpan data kecamatan.', [
-                'source' => __METHOD__,
-                'data' => $data,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat menyimpan data kecamatan.',
-                'data' => [],
-            ];
+            return $kecamatan;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Database error saat menyimpan data kecamatan.', 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat menyimpan data kecamatan.', 0, $e);
         }
     }
 
     /**
-     * Memperbarui data kecamatan berdasarkan ID
-     *
+     * @inheritDoc
      * @param string|int $id
      * @param array $data
-     * @return array
+     * @return bool
+     * @throws DataAccessException
      */
-    public function update(string|int $id, array $data): array
+    public function update(string|int $id, array $data): bool
     {
         try {
-            $result = $this->kecamatanRepository->update($id, $data);
+            $result = $this->repository->update($id, $data);
 
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Data kecamatan berhasil diperbarui.',
-                    'data' => $data,
-                ];
+            if(!$result) {
+                throw new DataAccessException("Gagal memperbarui data kecamatan dengan di {$id} di repository.");
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data kecamatan gagal diperbarui.',
-                'data' => [],
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal memperbarui data kecamatan.', [
-                'source' => __METHOD__,
-                'id' => $id,
-                'data' => $data,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat memperbarui data kecamatan.',
-                'data' => [],
-            ];
+            return (bool) $result;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat memperbarui data kecamatan dengan id {$id}.", 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat memperbarui data kecamatan dengan id {$id}.", 0, $e);
         }
     }
 
     /**
-     * Menghapus data kecamatan berdasarkan ID
-     *
+     * @inheritDoc
      * @param string|int $id
-     * @return array
+     * @return bool
+     * @throws DataAccessException
      */
-    public function delete(string|int $id): array
+    public function delete(string|int $id): bool
     {
         try {
-            $result = $this->kecamatanRepository->delete($id);
+            $result = $this->repository->delete($id);
 
-            if ($result) {
-                return [
-                    'success' => true,
-                    'message' => 'Data kecamatan berhasil dihapus.',
-                    'data' => ['id' => $id],
-                ];
+            if (!$result) {
+                throw new DataAccessException("Gagal menghapus data kecamatan dengan id {$id} di repository.");
             }
 
-            return [
-                'success' => false,
-                'message' => 'Data kecamatan gagal dihapus.',
-                'data' => [],
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal menghapus data kecamatan.', [
-                'source' => __METHOD__,
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            return (bool) $result;
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat mengahapus data kecamatan dengan id {$id}.", 0, $e);
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException("Terjadi kesalahan tak terduga saat mengahapus data kecamatan dengan id {$id}.", 0, $e);
+        }
+    }
 
-            return [
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat menghapus data kecamatan.',
-                'data' => [],
-            ];
+    /**
+     * @inheritDoc
+     * @param mixed $file
+     * @return array
+     * @throws DataAccessException
+     * @throws ImportFailedException
+     */
+    public function import(mixed $file): array
+    {
+        try {
+            $import = new KecamatanImport();
+            Excel::import($import, $file);
+
+            return $import->getFailures();
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            throw new ImportFailedException("Gagal validasi data import.", 0, $e, collect($failures));
+        } catch (QueryException $e) {
+            throw new DataAccessException("Database error saat import data kecamatan.", 0, $e);
+        } catch (Throwable $e) {
+            throw new ImportFailedException("Terjadi kesalahan tak terduga saat import data.", 0, $e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @return FromCollection
+     * @throws DataAccessException
+     */
+    public function export(): FromCollection
+    {
+        try {
+            return new KecamatanExport();
+        } catch (Throwable $e) {
+            throw new DataAccessException("Gagal export data.", 0, $e);
         }
     }
 }

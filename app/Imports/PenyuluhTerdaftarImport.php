@@ -69,10 +69,10 @@ class PenyuluhTerdaftarImport implements ToModel, WithValidation, SkipsOnFailure
     public function customValidationMessages(): array
     {
         return [
-            'nama.required' => 'Nama tidak boleh kosong',
-            'nama.min' => 'Nama tidak boleh kurang dari 3 karakter',
-            'nama.max' => 'Nama tidak boleh lebih dari 100 karakter',
-            'nama.regex' => 'Nama hanya boleh terdiri dari huruf, tanda petik satu, koma, titik dan spasi.',
+            'nama_penyuluh.required' => 'Nama tidak boleh kosong',
+            'nama_penyuluh.min' => 'Nama tidak boleh kurang dari 3 karakter',
+            'nama_penyuluh.max' => 'Nama tidak boleh lebih dari 100 karakter',
+            'nama_penyuluh.regex' => 'Nama hanya boleh terdiri dari huruf, tanda petik satu, koma, titik dan spasi.',
             'no_hp.required' => 'No. Hp tidak boleh kosong',
             'no_hp.starts_with' => 'No Hp harus menggunakan format 08xxx',
             'no_hp.digits_between' => 'No Hp harus terdiri dari 11 - 13 digit',

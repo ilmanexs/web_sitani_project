@@ -32,8 +32,11 @@ class LaporanBibitRequest extends FormRequest
                 'jenis_bibit' => ['required', 'string', 'max:255'],
                 'foto_bibit' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
                 'lokasi_lahan' => ['required', 'string', 'max:255'],
+                'foto_lokasi' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             ];
-        } elseif ($this->isMethod('PUT')) {
+        }
+
+        if ($this->isMethod('PUT')) {
             return [
                 'status' => ['required'],
             ];
@@ -67,8 +70,14 @@ class LaporanBibitRequest extends FormRequest
                 'lokasi_lahan.required' => 'Lokasi Lahan wajib diisi.',
                 'lokasi_lahan.string' => 'Lokasi Lahan harus berupa teks.',
                 'lokasi_lahan.max' => 'Lokasi Lahan maksimal 255 karakter.',
+                'foto_lokasi.required' => 'Foto Lokasi wajib diisi.',
+                'foto_lokasi.image' => 'Foto Lokasi harus berupa gambar.',
+                'foto_lokasi.mimes' => 'Format Foto Lokasi yang didukung adalah: jpeg, png, jpg.',
+                'foto_lokasi.max' => 'Ukuran Foto Bibit maksimal 2MB.',
             ];
-        } elseif ($this->isMethod('PUT')) {
+        }
+
+        if ($this->isMethod('PUT')) {
             return [
                 'status.required' => 'Silahkan pilih opsi kualitas bibit yang tersedia',
             ];

@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdatePenyuluhTerdaftarApiRequest extends FormRequest
 {
@@ -14,7 +17,7 @@ class UpdatePenyuluhTerdaftarApiRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
         $this->merge(['id' => $this->route('id')]);
     }
@@ -22,7 +25,7 @@ class UpdatePenyuluhTerdaftarApiRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
@@ -46,5 +49,17 @@ class UpdatePenyuluhTerdaftarApiRequest extends FormRequest
             'alamat_penyuluh.min' => 'Alamat Penyuluh Minimal 3 karakter.',
             'alamat_penyuluh.max' => 'Alamat Penyuluh Maksimal 255 karakter.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        $errors = $validator->errors();
+
+        throw new HttpResponseException(
+            response()->json([
+                'message' => 'Validasi gagal',
+                'errors' => $errors
+            ], 422)
+        );
     }
 }

@@ -10,7 +10,7 @@ trait LoggingError
 {
     protected function LogSqlException(QueryException $e, array $data = [], string $message = null): void
     {
-        Log::error($message ?? 'Database error di ' . __METHOD__ , [
+        Log::error($message ?? 'Database error.', [
             'data' => $data,
             'exception' => $e,
         ]);
@@ -18,9 +18,10 @@ trait LoggingError
 
     protected function LogGeneralException(Throwable $e, array $data = [], string $message = null): void
     {
-        Log::error($message ?? 'Terjadi kesalahan tak terduga di ' . __METHOD__ , [
+        Log::error($message ?? 'Terjadi kesalahan tak terduga.', [
             'data' => $data,
             'exception' => $e,
+            'previous' => $e->getPrevious(),
         ]);
     }
 
@@ -29,7 +30,7 @@ trait LoggingError
         Log::info($message ?? 'Data tidak ditemukan', [
             'data' => $data,
             'exception' => $e,
-            'source' => __METHOD__,
+            'previous' => $e?->getPrevious(),
         ]);
     }
 }
