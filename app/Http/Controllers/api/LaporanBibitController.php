@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use Illuminate\Support\Facades\Log;
 
 class LaporanBibitController extends Controller
 {
@@ -38,8 +39,10 @@ class LaporanBibitController extends Controller
             $laporan = $this->service->create($validated);
             return $this->successResponse(new LaporanBibitSuccessResource($laporan), 'Laporan berhasil disimpan', Response::HTTP_CREATED);
         } catch (DataAccessException $e) {
+            Log::error($e->getMessage());
             return $this->errorResponse('Laporan Gagal disimpan',Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Throwable $e) {
+            Log::error($e->getMessage());
             return $this->errorResponse('Terjadi kesalahan di server.',Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
