@@ -3,7 +3,7 @@
 namespace App\Repositories\Interfaces;
 
 use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 
 interface DesaRepositoryInterface extends BaseRepositoryInterface
 {
