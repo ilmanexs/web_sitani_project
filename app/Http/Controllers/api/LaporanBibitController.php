@@ -6,6 +6,7 @@ use App\Exceptions\DataAccessException;
 use App\Exceptions\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaporanBibitRequest;
+use App\Http\Resources\LaporanBibitSuccessResource;
 use App\Http\Resources\LaporanKondisiResource;
 use App\Services\Interfaces\LaporanBibitApiServiceInterface;
 use App\Trait\ApiResponse;
@@ -35,7 +36,7 @@ class LaporanBibitController extends Controller
 
         try {
             $laporan = $this->service->create($validated);
-            return $this->successResponse(new LaporanKondisiResource($laporan), 'Laporan berhasil disimpan', Response::HTTP_CREATED);
+            return $this->successResponse(new LaporanBibitSuccessResource($laporan), 'Laporan berhasil disimpan', Response::HTTP_CREATED);
         } catch (DataAccessException $e) {
             return $this->errorResponse('Laporan Gagal disimpan',Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Throwable $e) {
