@@ -83,6 +83,9 @@
                 </table>
             </x-ui.card>
         </div>
+        <div class="stat-chart-container">
+
+        </div>
         <div class="fax-container">
             <x-ui.card>
                 <x-ui.title :title="'FAX'" :custom-class="'font-bold'"/>

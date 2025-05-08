@@ -15,9 +15,9 @@ class SubTitle extends Component
      * Komponen title
      *
      * @param string $title title komponen
-     * @param string $customClass class untuk styling custom menggunakan tailwind css(optional)
+     * @param string $customClass class untuk styling custom menggunakan tailwind css (optional)
      */
-    public function __construct(string $title, string $customClass)
+    public function __construct(string $title, string $customClass = '') // Menambahkan nilai default pada $customClass
     {
         $this->title = $title;
         $this->customClass = $customClass;

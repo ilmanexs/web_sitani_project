@@ -3,6 +3,7 @@
 use App\Http\Controllers\api\BibitController;
 use App\Http\Controllers\api\KelompokTaniController;
 use App\Http\Controllers\api\KomoditasController;
+use App\Http\Controllers\api\LaporanBantuanAlatController;
 use App\Http\Controllers\api\LaporanBibitController;
 use App\Http\Controllers\api\NotificationController;
 use App\Http\Controllers\api\PenyuluhController;
@@ -80,4 +81,14 @@ Route::controller(LaporanBibitController::class)->group(function () {
     Route::get('laporan-kondisi/count/kecamatan/{id}', 'getTotalByKecamatanId');
     Route::get('laporan-kondisi/count/{id}', 'getLaporanStatusCounts');
     Route::get('history-laporan/{id}', 'getByKecamatanId');
+});
+
+/**
+ * Route untuk permintaan alat
+ */
+Route::controller(LaporanBantuanAlatController::class)->group(function () {
+    Route::post('permintaan-hibah', 'create')->withoutMiddleware(JwtMiddleware::class);
+    Route::get('permintaan-hibah/{id}', 'getAllByKecamatanId')->withoutMiddleware(JwtMiddleware::class);
+    Route::get('permintaan-hibah/count/{id}', 'getTotalByKecamatanId')->withoutMiddleware(JwtMiddleware::class);
+    Route::get('permintaan-hibah/count/status/{id}', 'getStatsTotalByKecamatanId')->withoutMiddleware(JwtMiddleware::class);
 });

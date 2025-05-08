@@ -13,7 +13,7 @@ class EditButton extends Component
     public string $icon;
     public string $style;
     public string $title;
-    public Route $route;
+    public mixed $route;
     public string $extraClassOption;
     public string $permission;
 
@@ -30,7 +30,7 @@ class EditButton extends Component
                                 string $icon = 'icon-[hugeicons--file-edit]',
                                 string $style = 'btn-soft',
                                 string $title = 'Perbarui',
-                                ?Route $route = null,
+                                mixed $route = null,
                                 string $extraClassOption = '',
                                 string $permission = ''
     )

@@ -4,7 +4,6 @@ namespace App\Repositories;
 
 use App\Exceptions\DataAccessException;
 use App\Models\Desa;
-use App\Repositories\Interfaces\Base\BaseRepositoryInterface;
 use App\Repositories\Interfaces\DesaRepositoryInterface;
 use App\Trait\LoggingError;
 use Illuminate\Support\Collection;

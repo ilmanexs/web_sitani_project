@@ -13,8 +13,12 @@ class Badge extends Component
     public $title;
     public $icon;
 
-    public function __construct($color, $style, $title, $icon)
-    {
+    public function __construct(
+        $color = 'primary',            // Default value for color
+        $style = 'default',            // Default value for style
+        $title = 'Badge',              // Default value for title
+        $icon = ''                     // Default value for icon (optional)
+    ){
         $this->color = $color;
         $this->style = $style;
         $this->title = $title;

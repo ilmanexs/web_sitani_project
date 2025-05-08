@@ -11,6 +11,7 @@ use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\LaporanBibitController;
 use App\Http\Controllers\PenyuluhTerdaftarController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\LaporanBantuanAlatController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -131,6 +132,17 @@ Route::middleware(['active.session', 'panel.admin.permission'])->group(function 
         Route::put('{laporan_bibit}', 'update')->middleware('permission:laporan-bibit.ubah')->name('laporan-bibit.update');
         Route::delete('{laporan_bibit}', 'destroy')->middleware('permission:laporan-bibit.hapus')->name('laporan-bibit.destroy');
         Route::get('{laporan_bibit}', 'show')->middleware('permission:laporan-bibit.lihat')->name('laporan-bibit.show');
+    });
+
+    //Laporan Alat
+    Route::controller(LaporanBantuanAlatController::class)->prefix('admin/laporan-alat')->group(function(){
+        Route::get('/', 'index')->name('laporan-alat.index'); //Tambahkan Middleware
+        Route::get('create', 'create')->name('laporan-alat.create');
+        Route::post('/', 'store')->name('laporan-alat.store');
+        Route::get('{laporan_alat}/edit', 'edit')->name('laporan-alat.edit');
+        Route::put('{laporan_alat}', 'update')->name('laporan-alat.update');
+        Route::delete('{laporan_alat}', 'destroy')->name('laporan-alat.destroy');
+        Route::get('{laporan_alat}', 'show')->name('laporan-alat.show');
     });
 
     // Admin User Management

@@ -8,10 +8,14 @@ use Illuminate\View\Component;
 
 class Card extends Component
 {
-
     public $extraClassOptions;
 
-    public function __construct($extraClassOptions)
+    /**
+     * Membuat parameter $extraClassOptions opsional
+     *
+     * @param string $extraClassOptions
+     */
+    public function __construct($extraClassOptions = '') // Menambahkan nilai default pada $extraClassOptions
     {
         $this->extraClassOptions = $extraClassOptions;
     }
@@ -21,6 +25,6 @@ class Card extends Component
      */
     public function render(): View|Closure|string
     {
-        return view('components..ui.card');
+        return view('components.ui.card');
     }
 }

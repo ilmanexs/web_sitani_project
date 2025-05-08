@@ -114,7 +114,7 @@
                         @endcan
                         @can('laporan-hibah.lihat')
                             <li>
-                                <a href="#">
+                                <a href="{{ route('laporan-alat.index') }}">
                                     <span class="icon-[mdi--donation-outline] size-5"></span>
                                     Laporan Hibah
                                 </a>
