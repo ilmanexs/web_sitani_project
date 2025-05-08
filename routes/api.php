@@ -54,7 +54,7 @@ Route::controller(BibitController::class)->group(function () {
  * Route untuk mengambil seluruh data komoditas dan berdasarkan id komoditas
  */
 Route::controller(KomoditasController::class)->group(function () {
-    Route::get('komoditas/musim', 'getMusim');
+    Route::get('komoditas/musim', 'getMusim')->withoutMiddleware(JwtMiddleware::class);
     Route::get('komoditas/count', 'calculateTotal');
     Route::get('komoditas/bibit', 'getAllWithBibit');
     Route::get('komoditas/{id}','show');
