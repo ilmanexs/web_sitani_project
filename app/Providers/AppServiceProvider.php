@@ -51,6 +51,7 @@ use App\Services\Interfaces\KomoditasServiceInterface;
 use App\Services\Interfaces\LaporanBantuanAlatServiceInterface;
 use App\Services\Interfaces\LaporanBibitApiServiceInterface;
 use App\Services\Interfaces\LaporanBibitServiceInterface;
+use App\Services\Interfaces\NotificationServiceInterface;
 use App\Services\Interfaces\PenyuluhServiceInterface;
 use App\Services\Interfaces\PenyuluhTerdaftarApiServiceInterface;
 use App\Services\Interfaces\PenyuluhTerdaftarServiceInterface;
@@ -128,6 +129,8 @@ class AppServiceProvider extends ServiceProvider
         // Laporan bantuan alat
         $this->app->bind(PermintaanAlatApiServiceInterface::class, PermintaanBantuanAlatApiService::class);
         $this->app->when(PermintaanBantuanAlatApiService::class)->needs(PermintaanBantuanAlatRepositoryInterface::class)->give(LaporanBantuanAlatRepository::class);
+        // Notifikasi
+        $this->app->bind(NotificationServiceInterface::class, NotificationService::class);
     }
 
     /**
