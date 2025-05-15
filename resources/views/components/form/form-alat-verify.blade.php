@@ -48,14 +48,7 @@
 
         <div id="detail-laporan" class="space-y-5">
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                    <label for="path_ktp_ketua">KTP Ketua</label>
-                    @if($laporan->LaporanBantuanAlatDetail->path_ktp_ketua)
-                        <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_ketua) }}" alt="KTP Ketua" class="object-cover w-full h-48 rounded-lg">
-                    @else
-                        <p>No image available</p>
-                    @endif
-                </div>
+
                 <div>
                     <label for="path_badan_hukum">Badan Hukum (PDF)</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_badan_hukum)
@@ -63,6 +56,16 @@
                     @else
                         <p>No file available</p>
                     @endif
+                </div>
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div>
+                        <label for="path_proposal">Proposal (PDF)</label>
+                        @if($laporan->path_proposal)
+                            <a href="{{ asset('storage/' . $laporan->path_proposal) }}" target="_blank" class="text-blue-500">View Proposal (PDF)</a>
+                        @else
+                            <p>No proposal available</p>
+                        @endif
+                    </div>
                 </div>
 
             </div>
@@ -86,7 +89,7 @@
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
+                <div class="relative min-w-8 max-w-96 h-60">
                     <label for="path_foto_lokasi">Foto Lokasi</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_foto_lokasi)
                         <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_foto_lokasi) }}" alt="Foto Lokasi" class="object-cover w-full h-48 rounded-lg">
@@ -94,7 +97,7 @@
                         <p>No image available</p>
                     @endif
                 </div>
-                <div>
+                <div class="relative min-w-8 max-w-96 h-60">
                     <label for="path_ktp_sekretaris">KTP Sekretaris</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_ktp_sekretaris)
                         <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_sekretaris) }}" alt="KTP Sekretaris" class="object-cover w-full h-48 rounded-lg">
@@ -104,7 +107,7 @@
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
+                <div class="relative min-w-8 max-w-96 h-60">
                     <label for="path_ktp_ketua_upkk">KTP Ketua UPKK</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_ktp_ketua_upkk)
                         <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_ketua_upkk) }}" alt="KTP Ketua UPKK" class="object-cover w-full h-48 rounded-lg">
@@ -112,7 +115,7 @@
                         <p>No image available</p>
                     @endif
                 </div>
-                <div>
+                <div class="relative min-w-8 max-w-96 h-60">
                     <label for="path_ktp_anggota1">KTP Anggota 1</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_ktp_anggota1)
                         <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_anggota1) }}" alt="KTP Anggota 1" class="object-cover w-full h-48 rounded-lg">
@@ -122,7 +125,7 @@
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
+                <div class="relative min-w-8 max-w-96 h-60">
                     <label for="path_ktp_anggota2">KTP Anggota 2</label>
                     @if($laporan->LaporanBantuanAlatDetail->path_ktp_anggota2)
                         <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_anggota2) }}" alt="KTP Anggota 2" class="object-cover w-full h-48 rounded-lg">
@@ -130,14 +133,12 @@
                         <p>No image available</p>
                     @endif
                 </div>
-            </div>
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                    <label for="path_proposal">Proposal (PDF)</label>
-                    @if($laporan->path_proposal)
-                        <a href="{{ asset('storage/' . $laporan->path_proposal) }}" target="_blank" class="text-blue-500">View Proposal (PDF)</a>
+                <div class="relative min-w-8 max-w-96 h-60">
+                    <label for="path_ktp_ketua">KTP Ketua</label>
+                    @if($laporan->LaporanBantuanAlatDetail->path_ktp_ketua)
+                        <img src="{{ asset('storage/' . $laporan->LaporanBantuanAlatDetail->path_ktp_ketua) }}" alt="KTP Ketua" class="object-cover w-full h-48 rounded-lg">
                     @else
-                        <p>No proposal available</p>
+                        <p>No image available</p>
                     @endif
                 </div>
             </div>
@@ -160,14 +161,16 @@
             @else
                 <span class="helper-text">Verifikasi permintaan bantuan hibah</span>
                 @enderror
-            </div>
         </div>
+    </div>
 
     {{-- action button --}}
     <div class="button-group flex space-x-4">
         <button class="btn btn-soft btn-secondary" onclick="back()">Kembali</button>
         <x-ui.button.save-button :style="'btn-soft'" :formId="'form-verify-alat'" :title="'Verifikasi'"/>
-    </div>
+        <a href="{{ route('laporan.downloadZip', $laporan->id) }}" class="btn btn-soft btn-primary">
+            Download Dokumen (ZIP)
+        </a>
 
     </div>
 </form>

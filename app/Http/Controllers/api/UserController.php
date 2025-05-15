@@ -45,7 +45,7 @@ class UserController extends Controller
             if ($user && !$user->hasRole('penyuluh')) {
                 return $this->errorResponse('Akun anda tidak terdaftar sebagai penyuluh', JsonResponse::HTTP_UNAUTHORIZED);
             }
-            return $this->successResponse(new UserResource($user));
+            return $this->successResponse(new UserResource($user), 'Data Profil berhasil diambil');
         } catch (ResourceNotFoundException $e) {
             return $this->errorResponse('User tidak ditemukan', 404);
         } catch (DataAccessException $e) {

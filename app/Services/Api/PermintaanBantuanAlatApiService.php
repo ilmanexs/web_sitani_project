@@ -69,6 +69,7 @@ class PermintaanBantuanAlatApiService implements PermintaanAlatApiServiceInterfa
                     'penyuluh_id' => $data['penyuluh_id'],
                     'alat_diminta' => $data['alat_diminta'],
                     'path_proposal' => $pathProposal,
+                    'status' => '2',
                 ]);
 
                 if ($laporanModel === null) {

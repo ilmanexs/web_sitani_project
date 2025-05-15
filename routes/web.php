@@ -9,6 +9,7 @@ use App\Http\Controllers\KecamatanController;
 use App\Http\Controllers\KelompokTaniController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\LaporanBibitController;
+use App\Http\Controllers\LaporanDownloadController;
 use App\Http\Controllers\PenyuluhTerdaftarController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\LaporanBantuanAlatController;
@@ -143,6 +144,8 @@ Route::middleware(['active.session', 'panel.admin.permission'])->group(function 
         Route::put('{laporan_alat}', 'update')->name('laporan-alat.update');
         Route::delete('{laporan_alat}', 'destroy')->name('laporan-alat.destroy');
         Route::get('{laporan_alat}', 'show')->name('laporan-alat.show');
+        Route::get('/laporan/{id}/download-zip', 'downloadZip')->name('laporan.downloadZip');
+
     });
 
     // Admin User Management

@@ -92,3 +92,4 @@ Route::controller(LaporanBantuanAlatController::class)->group(function () {
     Route::get('permintaan-hibah/count/{id}', 'getTotalByKecamatanId')->withoutMiddleware(JwtMiddleware::class);
     Route::get('permintaan-hibah/count/status/{id}', 'getStatsTotalByKecamatanId')->withoutMiddleware(JwtMiddleware::class);
 });
+

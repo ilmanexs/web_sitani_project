@@ -258,4 +258,36 @@ class LaporanBantuanAlatRepository implements PermintaanBantuanAlatRepositoryInt
             throw new DataAccessException('Terjadi kesalahan tak terduga saat insert laporan detail di repository.');
         }
     }
+    public function getTahunTersedia()
+    {
+        return DB::table('permintaan_bantuan_alat')
+            ->selectRaw('YEAR(updated_at) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year');
+    }
+
+    public function countPermintaanHibah(int $tahun)
+    {
+        return DB::table('permintaan_bantuan_alat')
+            ->whereYear('updated_at', $tahun)
+            ->count();
+    }
+
+
+    public function countDiterima(int $tahun)
+    {
+        return DB::table('permintaan_bantuan_alat')
+            ->where('status', '1')
+            ->whereYear('updated_at', $tahun)
+            ->count();
+    }
+
+    public function countDitolak(int $tahun)
+    {
+        return DB::table('permintaan_bantuan_alat')
+            ->where('status', '0')
+            ->whereYear('updated_at', $tahun)
+            ->count();
+    }
 }

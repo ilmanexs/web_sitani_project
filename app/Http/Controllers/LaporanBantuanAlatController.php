@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\DataAccessException;
 use App\Exceptions\ResourceNotFoundException;
-use App\Http\Requests\LaporanBantuanAlat;
+//use App\Http\Requests\LaporanBantuanAlat;
+use App\Models\LaporanBantuanAlat;
 use App\Services\Interfaces\LaporanBantuanAlatServiceInterface;
-
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use ZipArchive;
+
 
 class LaporanBantuanAlatController extends Controller
 {
@@ -102,4 +105,49 @@ class LaporanBantuanAlatController extends Controller
             return redirect()->route('laporan-alat.index')->with('error', 'Gagal menghapus data laporan bantuan alat. Silakan coba lagi.');
         }
     }
+    public function downloadZip($id)
+    {
+        $laporan = LaporanBantuanAlat::with('LaporanBantuanAlatDetail')->findOrFail($id);
+
+        $zip = new ZipArchive();
+        $zipFileName = 'laporan_' . $id . '.zip';
+        $zipPath = storage_path('app/public/tmp/' . $zipFileName);
+
+        // Buat folder sementara jika belum ada
+        if (!file_exists(storage_path('app/public/tmp'))) {
+            mkdir(storage_path('app/public/tmp'), 0777, true);
+        }
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+            $files = [];
+
+            // Dokumen PDF
+            $files['Badan_Hukum.pdf'] = $laporan->LaporanBantuanAlatDetail->path_badan_hukum ?? null;
+            $files['Proposal.pdf'] = $laporan->path_proposal ?? null;
+            $files['Piagam_Pengesahan.pdf'] = $laporan->LaporanBantuanAlatDetail->path_piagam ?? null;
+            $files['Surat_Domisili.pdf'] = $laporan->LaporanBantuanAlatDetail->path_surat_domisili ?? null;
+
+            // Gambar
+            $files['Foto_Lokasi.jpg'] = $laporan->LaporanBantuanAlatDetail->path_foto_lokasi ?? null;
+            $files['KTP_Sekretaris.jpg'] = $laporan->LaporanBantuanAlatDetail->path_ktp_sekretaris ?? null;
+            $files['KTP_Ketua_UPKK.jpg'] = $laporan->LaporanBantuanAlatDetail->path_ktp_ketua_upkk ?? null;
+            $files['KTP_Anggota_1.jpg'] = $laporan->LaporanBantuanAlatDetail->path_ktp_anggota1 ?? null;
+            $files['KTP_Anggota_2.jpg'] = $laporan->LaporanBantuanAlatDetail->path_ktp_anggota2 ?? null;
+            $files['KTP_Ketua.jpg'] = $laporan->LaporanBantuanAlatDetail->path_ktp_ketua ?? null;
+
+            foreach ($files as $fileName => $path) {
+                if ($path && Storage::disk('public')->exists($path)) {
+                    $fullPath = Storage::disk('public')->path($path);
+                    $zip->addFile($fullPath, $fileName);
+                }
+            }
+
+            $zip->close();
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
+
+        return back()->with('error', 'Tidak dapat membuat file ZIP.');
+    }
+
 }

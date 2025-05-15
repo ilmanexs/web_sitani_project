@@ -12,6 +12,7 @@ use App\Http\Requests\OtpCodeRequest;
 use App\Http\Requests\PasswordRequest;
 use App\Http\Requests\PenyuluhRequest;
 use App\Http\Requests\PhonePenyuluhRequest;
+use App\Http\Resources\PenyuluhTerdaftarResource;
 use App\Http\Resources\UserLoginResource;
 use App\Services\Api\PenyuluhTerdaftarApiService;
 use App\Services\Interfaces\PenyuluhServiceInterface;
@@ -78,7 +79,7 @@ class AuthApiController extends Controller
                 return $this->errorResponse('Nomor telah terdaftar, silahkan login,',  Response::HTTP_CONFLICT);
             }
 
-            return $this->successResponse($penyuluhTerdaftar, 'Nomor HP terdaftar sebagai penyuluh.');
+            return $this->successResponse(new PenyuluhTerdaftarResource($penyuluhTerdaftar), 'Nomor HP terdaftar sebagai penyuluh.');
 
         } catch (ResourceNotFoundException $e) {
             return $this->errorResponse($e->getMessage(), $e->getCode() ?: Response::HTTP_NOT_FOUND);
