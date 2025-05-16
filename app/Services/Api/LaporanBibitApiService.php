@@ -175,4 +175,21 @@ class LaporanBibitApiService implements LaporanBibitApiServiceInterface
             throw new DataAccessException('Terjadi kesalahan tak terduga saat mengambil total laporan berdasarkan kecamatan id');
         }
     }
+
+    public function getTotalLuasLahan(): Collection
+    {
+        try {
+            $total = $this->repository->getTotalLuasLahan();
+            if ($total->isEmpty()) {
+                throw new DataAccessException('Tidak ada data luas lahan dalam 5 tahun terakhir.');
+            }
+            return $total;
+        } catch (QueryException $e) {
+            throw new DataAccessException('Terjadi kesalahan saat menghitung total luas lahan dalam 5 tahun.');
+        } catch (DataAccessException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new DataAccessException('Terjadi kesalahan tidak terduga saat menghitung total luas lahan.');
+        }
+    }
 }

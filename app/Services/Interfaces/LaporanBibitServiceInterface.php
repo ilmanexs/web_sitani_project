@@ -20,4 +20,11 @@ interface LaporanBibitServiceInterface extends BaseServiceInterface
      * @return array data total laporan
      */
     public function getLaporanStatusCounts(string|int|null $penyuluhId): array;
+
+    /**
+     * Export data laporan bibit dalam bentuk excel
+     *
+     * @return mixed
+     */
+    public function export();
 }

@@ -92,7 +92,7 @@
 
             $(document).ready(function () {
                 const dataTable = $(".datatable-top");
-                dataTable.prepend(`<div class="action-header-container flex"></div>`);
+                dataTable.prepend(`<div class="action-header-container flex"> <x-ui.button.export-button :title="'Export Excel'" :style="'btn-soft'" :color="'btn-success'" :routes="route('laporan-bibit.export')" :permission="'laporan-bibit.export'" :extra-class-element="'w-full'" :icon="'icon-[line-md--file-export]'" /> </div>`);
                 dataTable.children().not(".action-header-container").wrapAll('<div class="features-action-container flex flex-row-reverse gap-4 flex-wrap"></div>');
             });
         }

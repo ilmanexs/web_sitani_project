@@ -307,5 +307,39 @@ class LaporanBibitBibitRepository implements LaporanBibitRepositoryInterface
             throw new DataAccessException('Terjadi kesalahan tak terduga saat menyimpan detail laporan.', 0, $e);
         }
     }
+
+    /**
+     * @return Collection
+     * @inheritDoc
+     * @throws DataAccessException
+     */
+    public function getTotalLuasLahan(): Collection
+    {
+        try {
+            $currentYear = Carbon::now()->year;
+            $fiveYearsAgo = $currentYear - 4;
+
+            return LaporanKondisiDetail::whereBetween('created_at', [
+                Carbon::create($fiveYearsAgo, 1, 1)->startOfYear(),
+                Carbon::create($currentYear, 12, 31)->endOfYear(),
+            ])
+                ->selectRaw('YEAR(created_at) as tahun, SUM(luas_lahan) as total_luas_lahan')
+                ->groupBy('tahun')
+                ->orderBy('tahun', 'DESC')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'tahun' => (int) $item->tahun,
+                        'total_luas_lahan' => (float) $item->total_luas_lahan,
+                    ];
+                });
+        } catch (QueryException $e) {
+            $this->logSqlException($e);
+            throw new DataAccessException('Terjadi kesalahan saat mengambil total luas lahan per tahun.', 0, $e);
+        } catch (Throwable $e) {
+            $this->logGeneralException($e);
+            throw new DataAccessException('Terjadi kesalahan tak terduga saat mengambil total luas lahan per tahun.', 0, $e);
+        }
+    }
 }
 

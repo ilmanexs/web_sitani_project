@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\DataAccessException;
 use App\Exceptions\ResourceNotFoundException;
+use App\Exports\LaporanBibitExport;
 use App\Repositories\Interfaces\LaporanBibitRepositoryInterface;
 use App\Services\Api\LaporanBibitApiService;
 use App\Services\Interfaces\LaporanBibitServiceInterface;
@@ -172,6 +173,15 @@ class LaporanBibitService implements LaporanBibitServiceInterface
             throw new DataAccessException('Database error saat menghitung total laporan bibit berdasarkan status.', 0, $e);
         } catch (Throwable $e) {
             throw new DataAccessException('Terjadi kesalahan tidak terduga saat menghitung total laporan bibit berdasarkan status.', 0, $e);
+        }
+    }
+
+    public function export()
+    {
+        try {
+            return new LaporanBibitExport();
+        } catch (Throwable $e) {
+            throw new DataAccessException("Gagal export data laporan bibit.", 0, $e);
         }
     }
 }

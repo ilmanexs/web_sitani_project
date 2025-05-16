@@ -90,4 +90,16 @@ class LaporanBibitController extends Controller
             return $this->errorResponse('Terjadi kesalahan di server.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function getTotalLuasLahan(): JsonResponse
+    {
+        try {
+            $total = $this->service->getTotalLuasLahan();
+            return $this->successResponse($total, 'Total luas lahan berhasil diambil');
+        } catch (DataAccessException $e) {
+            return $this->errorResponse('Gagal mengambil total luas lahan.', 500);
+        } catch (Throwable $e) {
+            return $this->errorResponse('Terjadi kesalahan di server.', 500);
+        }
+    }
 }

@@ -48,4 +48,11 @@ interface LaporanBibitRepositoryInterface extends BaseRepositoryInterface
      */
     public function getTotalByKecamatanId(string|int $kecamatanId): int;
 
+    /**
+     * Mengambil total luas lahan secara keseluruhan dalam 5 tahun terakhir.
+     *
+     * @return Collection Total luas lahan Group by tahun
+     */
+    public function getTotalLuasLahan(): Collection;
+
 }

@@ -78,6 +78,7 @@ Route::controller(KelompokTaniController::class)->group(function () {
  */
 Route::controller(LaporanBibitController::class)->group(function () {
     Route::post('laporan-kondisi', 'saveReport');
+    Route::get('laporan-kondisi/total-luas-lahan', 'getTotalLuasLahan')->withoutMiddleware(JwtMiddleware::class);
     Route::get('laporan-kondisi/count/kecamatan/{id}', 'getTotalByKecamatanId');
     Route::get('laporan-kondisi/count/{id}', 'getLaporanStatusCounts');
     Route::get('history-laporan/{id}', 'getByKecamatanId');

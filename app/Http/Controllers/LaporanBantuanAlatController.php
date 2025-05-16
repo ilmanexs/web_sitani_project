@@ -9,6 +9,7 @@ use App\Models\LaporanBantuanAlat;
 use App\Services\Interfaces\LaporanBantuanAlatServiceInterface;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 use ZipArchive;
 
 
@@ -148,6 +149,18 @@ class LaporanBantuanAlatController extends Controller
         }
 
         return back()->with('error', 'Tidak dapat membuat file ZIP.');
+    }
+
+    public function export()
+    {
+        try {
+            $exporter = $this->laporanService->export();
+            return Excel::download($exporter, 'Laporan hibah.xlsx');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->with('error', 'Gagal menyiapkan data untuk export.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh data export.');
+        }
     }
 
 }

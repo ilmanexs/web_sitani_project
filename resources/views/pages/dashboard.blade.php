@@ -60,25 +60,27 @@
         </div>
         <div class="table-container">
             <x-ui.card>
-                <x-ui.title :title="'Data Aliansi Jokowi'" :custom-class="'mb-3.5 font-bold'"/>
+                <x-ui.title :title="'Data Pengajuan yang di setujui dalam 1 tahun ini'" :custom-class="'mb-3.5 font-bold'"/>
                 <table id="rekap-table" class="table">
                     <x-ui.table.header-table :items="[
-        ['title' => 'Nama'],
-        ['title' => 'Deskripsi'],
+        ['title' => 'Nama Kelompok Tani'],
+        ['title' => 'Nama Ketua'],
+        ['title' => 'Nama Penyuluh'],
+        ['title' => 'Alat Diminta'],
     ]"/>
                     <tbody>
-                    <tr>
-                        <td>Ridho</td>
-                        <td>Ketua</td>
-                    </tr>
-                    <tr>
-                        <td>Ika</td>
-                        <td>Wakil</td>
-                    </tr>
-                    <tr>
-                        <td>Adit</td>
-                        <td>Sekertaris</td>
-                    </tr>
+                    @forelse($alatDisetujui as $alat)
+                        <tr>
+                            <td>{{ $alat->KelompokTani->nama ?? '-' }}</td>
+                            <td>{{ $alat->LaporanBantuanAlatDetail->nama_ketua ?? '-' }}</td>
+                            <td>{{ $alat->Penyuluh->PenyuluhTerdaftar->nama ?? '-' }}</td>
+                            <td>{{ $alat->alat_diminta ?? '-' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-gray-500">Belum ada data disetujui tahun ini.</td>
+                        </tr>
+                    @endforelse
                     </tbody>
                 </table>
             </x-ui.card>

@@ -45,7 +45,7 @@
                     <td>
                         <x-ui.dropdown-action :title="'Lihat Aksi'" :style="'btn-soft'">
                             <x-ui.button.edit-button :color="'btn-success'" :style="'btn-soft'" :route="route('laporan-alat.edit', $laporan->id)" :title="'Verifikasi'" :permission="'laporan-hibah.ubah'" :extraClassOption="'w-full'" />
-{{--                            <x-ui.button.delete-button :color="'btn-error'" :style="'btn-soft'" :route="route('laporan-alat.destroy' , $laporan->id)" :title="'Hapus'" :permission="'laporan-hibah.hapus'" :extraClassOption="'w-full'" />--}}
+                            <x-ui.button.delete-button :keyId="'btn-delete'" :color="'btn-error'" :style="'btn-soft'" :route="route('laporan-alat.destroy' , $laporan->id)" :title="'Hapus'" :permission="'laporan-hibah.hapus'" :extraClassOption="'w-full'" />
                         </x-ui.dropdown-action>
                     </td>
                 </tr>
@@ -77,7 +77,7 @@
 
             $(document).ready(function () {
                 const dataTable = $(".datatable-top");
-                dataTable.prepend(`<div class="action-header-container flex"></div>`);
+                dataTable.prepend(`<div class="action-header-container flex"> <x-ui.button.export-button :title="'Export Excel'" :style="'btn-soft'" :color="'btn-success'" :routes="route('laporan-hibah.export')" :permission="'laporan-hibah.export'" :extra-class-element="'w-full'" :icon="'icon-[line-md--file-export]'" /> </div>`);
                 dataTable.children().not(".action-header-container").wrapAll('<div class="features-action-container flex flex-row-reverse gap-4 flex-wrap"></div>');
             });
         }

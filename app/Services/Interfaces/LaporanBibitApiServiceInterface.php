@@ -38,4 +38,11 @@ interface LaporanBibitApiServiceInterface
      * @return int Total
      */
     public function getTotalByKecamatanId(string|int $kecamatanId): int;
+
+    /**
+     * Mengambil total luas lahan secara keseluruhan dalam 5 tahun terakhir
+     *
+     * @return Collection Total luas lahan Group by Tahun
+     */
+    public function getTotalLuasLahan(): Collection;
 }

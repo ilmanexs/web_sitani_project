@@ -8,6 +8,7 @@ use App\Exceptions\DataAccessException;
 use App\Exceptions\ResourceNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
 class LaporanBibitController extends Controller
@@ -79,6 +80,18 @@ class LaporanBibitController extends Controller
             return redirect()->route('laporan-bibit.index')->with('error', 'Gagal menghapus data laporan bibit. Silakan coba lagi.');
         } catch (Throwable $e) {
             return redirect()->route('laporan-bibit.index')->with('error', 'Terjadi kesalahan tak terduga saat menghapus data.');
+        }
+    }
+
+    public function export()
+    {
+        try {
+            $exporter = $this->laporanService->export();
+            return Excel::download($exporter, 'Laporan bibit.xlsx');
+        } catch (DataAccessException $e) {
+            return redirect()->back()->with('error', 'Gagal menyiapkan data untuk export.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh data export.');
         }
     }
 }

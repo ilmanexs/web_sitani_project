@@ -132,20 +132,19 @@ Route::middleware(['active.session', 'panel.admin.permission'])->group(function 
         Route::get('{laporan_bibit}/edit', 'edit')->middleware('permission:laporan-bibit.ubah')->name('laporan-bibit.edit');
         Route::put('{laporan_bibit}', 'update')->middleware('permission:laporan-bibit.ubah')->name('laporan-bibit.update');
         Route::delete('{laporan_bibit}', 'destroy')->middleware('permission:laporan-bibit.hapus')->name('laporan-bibit.destroy');
-        Route::get('{laporan_bibit}', 'show')->middleware('permission:laporan-bibit.lihat')->name('laporan-bibit.show');
+        Route::get('export', 'export')->middleware('permission:laporan-bibit.export')->name('laporan-bibit.export');
     });
 
     //Laporan Alat
     Route::controller(LaporanBantuanAlatController::class)->prefix('admin/laporan-alat')->group(function(){
-        Route::get('/', 'index')->name('laporan-alat.index'); //Tambahkan Middleware
+        Route::get('/', 'index')->middleware('permission:laporan-hibah.lihat')->name('laporan-alat.index');
         Route::get('create', 'create')->name('laporan-alat.create');
         Route::post('/', 'store')->name('laporan-alat.store');
-        Route::get('{laporan_alat}/edit', 'edit')->name('laporan-alat.edit');
-        Route::put('{laporan_alat}', 'update')->name('laporan-alat.update');
-        Route::delete('{laporan_alat}', 'destroy')->name('laporan-alat.destroy');
-        Route::get('{laporan_alat}', 'show')->name('laporan-alat.show');
+        Route::get('{laporan_alat}/edit', 'edit')->middleware('permission:laporan-hibah.ubah')->name('laporan-alat.edit');
+        Route::put('{laporan_alat}', 'update')->middleware('permission:laporan-hibah.ubah')->name('laporan-alat.update');
+        Route::delete('{laporan_alat}', 'destroy')->middleware('permission:laporan-hibah.hapus')->name('laporan-alat.destroy');
         Route::get('/laporan/{id}/download-zip', 'downloadZip')->name('laporan.downloadZip');
-
+        Route::get('export', 'export')->middleware('permission:laporan-hibah.export')->name('laporan-hibah.export');
     });
 
     // Admin User Management
